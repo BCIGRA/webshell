@@ -102,4 +102,4 @@ $PASSWORD = "PaSsW0rd";
 
 ## 📝 Lisensi
 
-Pilih lisensi sesuai kebutuhan (MIT, Apache 2.0, dsb.).
+Proyek ini dilisensikan di bawah [MIT License](LICENSE).
