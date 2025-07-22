@@ -2,8 +2,8 @@
 session_start();
 
 // Hardcoded credentials for demonstration. CHANGE THIS IN PRODUCTION!
-$valid_username = "root";
-$valid_password_hash = password_hash("0xTru3@123#Fam", PASSWORD_DEFAULT);
+$valid_username = "sroot";
+$valid_password_hash = password_hash("PaSsW0rd", PASSWORD_DEFAULT);
 
 // Handle login POST request
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
