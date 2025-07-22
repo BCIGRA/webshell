@@ -64,9 +64,8 @@ Pada bagian atas `webshell.php`, sesuaikan variabel:
 
 ```php
 $nick     = "0xTrue-Dev";
-$USERNAME = "admin";
-$PASSWORD = "passwordku123";
-$apiKey   = ""; // Gemini API key
+$USERNAME = "sroot";
+$PASSWORD = "PaSsW0rd";
 ```
 
 ---
